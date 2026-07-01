@@ -1,0 +1,28 @@
+# Secrets & credentials — NE JAMAIS committer
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+service-account*.json
+credentials*.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+*.egg-info/
+
+# Node / frontend (UI A2UI)
+node_modules/
+dist/
+
+# OS / éditeur
+.DS_Store
+.idea/
+
+# Données réelles — jamais dans Git
+data/
+*.local.*
