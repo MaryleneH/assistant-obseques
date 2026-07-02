@@ -1,4 +1,5 @@
 <!-- 🌍 Langue : **Français** · [English](README.md) -->
+🌍 **Français** · [English](README.md)
 
 # Assistant Obsèques
 ### Un copilote IA, sous contrôle humain, pour préparer les cérémonies d'obsèques

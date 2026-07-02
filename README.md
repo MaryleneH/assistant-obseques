@@ -1,4 +1,5 @@
 <!-- 🌍 Language: **English** · [Français](README.fr.md) -->
+🌍 **English** · [Français](README.fr.md)
 
 # Assistant Obsèques
 ### A Human-in-the-Loop AI Agent for Funeral Ceremony Preparation
