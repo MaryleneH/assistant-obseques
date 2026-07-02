@@ -1,0 +1,25 @@
+{
+  "defunt": "Madame Martin Jeanne, 84 ans",
+  "eglise": "Église Saint-Martin le Mardi 7 Juillet 2026 / 10h30",
+  "celebrant": "Père Bernard",
+  "etapes": [
+    { "label": "Entrée", "inline": "Musique CD." },
+    { "label": "Accueil", "inline": "Célébrant" },
+    { "label": "Présentation du défunt", "inline": "Famille" },
+    { "label": "Chant d’entrée", "inline": "N° 9 · Page 6", "sub": [ { "t": "Trouver dans ma vie ta présence", "i": true } ] },
+    { "label": "Rite de la lumière", "inline": "N° 8 · Page 5", "sub": [ { "t": "Ô Seigneur, je viens vers toi", "i": true }, { "t": "   —   Famille (2 lumignons)" } ] },
+    { "label": "1ère Lecture", "inline": "L 7 · Page 33", "sub": "Saint Paul Apôtre aux Romains · Romains 8, 31b-35.37-39" },
+    { "label": "Psaume", "inline": "22 · Page 18", "sub": [ { "t": "Le Seigneur est mon berger : rien ne saurait me manquer.", "i": true } ] },
+    { "label": "Alléluia" },
+    { "label": "Évangile", "inline": "E 14 · Page 71", "sub": "Évangile de Saint Jean · Jean 17, 24-26" },
+    { "label": "Homélie", "inline": "Célébrant" },
+    { "label": "Prière Universelle", "inline": [ { "t": "Ô Seigneur en ce jour…", "i": true } ], "sub": "A1, B2, C1/3, D3" },
+    { "label": "Notre Père" },
+    { "label": "Chant d’Adieu", "inline": "N° 25 · Page 14", "sub": [ { "t": "Je vous salue Marie", "i": true } ] },
+    { "label": "Encensement / Bénédiction", "inline": "Célébrant" },
+    { "label": "Prière à Marie", "inline": "Chanté" },
+    { "label": "Bénédiction", "inline": "Assemblée", "sub": [ { "t": "Ave Maria", "i": true }, { "t": "   ·   CD" } ] },
+    { "label": "Sortie", "inline": "Musique CD." }
+  ],
+  "prochaineMesse": "Samedi 11 Juillet 2026 à Saint-Martin — 18h30"
+}

@@ -1,4 +1,4 @@
-# Secrets & credentials — NE JAMAIS committer
+# Secrets & credentials — NEVER commit
 .env
 .env.*
 !.env.example
@@ -15,15 +15,15 @@ venv/
 .pytest_cache/
 *.egg-info/
 
-# Node / frontend (UI A2UI)
+# Node / frontend (A2UI screen, docx skill)
 node_modules/
 dist/
 
-# OS / éditeur
+# OS / Editor
 .DS_Store
 .idea/
 
-# Données réelles — jamais dans Git
+# Real data — never in Git (fictional test data lives in examples/)
 data/
 *.local.*
 

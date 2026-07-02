@@ -1,0 +1,91 @@
+{
+  "caseId": "",
+  "status": "draft",
+  "createdAt": null,
+  "updatedAt": null,
+
+  "deceased": {
+    "firstName": null,
+    "lastName": null,
+    "age": null,
+    "personalityTraits": [],
+    "lifeElements": [],
+    "avoidMentioning": []
+  },
+
+  "ceremony": {
+    "date": null,
+    "time": null,
+    "church": null,
+    "celebrant": null,
+    "liturgySteps": [
+      {
+        "label": null,
+        "reference": null,
+        "title": null,
+        "detail": null
+      }
+    ],
+    "nextMass": null,
+    "entranceSong": null,
+    "firstReading": null,
+    "psalm": null,
+    "gospel": null,
+    "meditationSong": null,
+    "universalPrayerIntentions": [],
+    "finalFarewellSong": null,
+    "practicalNotes": []
+  },
+
+  "participants": {
+    "mainFamilyContact": {
+      "name": null,
+      "relationship": null,
+      "email": null,
+      "phone": null
+    },
+    "readers": [
+      { "name": null, "relationship": null, "task": null }
+    ],
+    "prayerReaders": [
+      { "name": null, "relationship": null, "task": null }
+    ]
+  },
+
+  "communication": {
+    "priestEmail": null,
+    "teamEmails": [],
+    "documentLink": null,
+    "emailSubject": null,
+    "emailBody": null,
+    "emailDraftCreated": false
+  },
+
+  "extraction": {
+    "sourceType": "manual_notes",
+    "pageCount": 1,
+    "missingFields": [],
+    "contradictions": [
+      {
+        "field": null,
+        "values": [],
+        "pages": [],
+        "note": null
+      }
+    ],
+    "fieldConfidences": {},
+    "needsHumanReview": []
+  },
+
+  "qualityCheck": {
+    "status": "PENDING",
+    "alerts": [],
+    "recommendedActions": []
+  },
+
+  "security": {
+    "containsSensitiveData": true,
+    "humanValidated": false,
+    "retentionPolicy": "delete_or_anonymize_after_defined_period"
+  }
+}

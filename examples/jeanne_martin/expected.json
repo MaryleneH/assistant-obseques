@@ -1,0 +1,100 @@
+{
+  "status": "needs_review",
+
+  "deceased": {
+    "firstName": "Jeanne",
+    "lastName": "Martin",
+    "age": 84,
+    "personalityTraits": [
+      "discrète",
+      "croyante",
+      "attachée à ses petits-enfants",
+      "aimait chanter",
+      "aimait rendre service"
+    ],
+    "lifeElements": [],
+    "avoidMentioning": [
+      "ne pas insister sur la maladie"
+    ]
+  },
+
+  "ceremony": {
+    "date": "2026-07-07",
+    "time": "10:30",
+    "church": "église Saint-Martin",
+    "celebrant": "Père Bernard",
+    "liturgySteps": [
+      { "label": "Chant d’entrée", "reference": null, "title": "Trouver dans ma vie ta présence", "detail": null },
+      { "label": "1ère Lecture", "reference": null, "title": null, "detail": "Pierre (fils)" },
+      { "label": "Prière Universelle", "reference": null, "title": null, "detail": "Claire (petite-fille) — une intention" },
+      { "label": "Chant d’Adieu", "reference": null, "title": "Je vous salue Marie", "detail": null }
+    ],
+    "nextMass": null,
+    "entranceSong": "Trouver dans ma vie ta présence",
+    "firstReading": null,
+    "psalm": null,
+    "gospel": null,
+    "meditationSong": null,
+    "universalPrayerIntentions": [],
+    "finalFarewellSong": "Je vous salue Marie",
+    "practicalNotes": []
+  },
+
+  "participants": {
+    "mainFamilyContact": {
+      "name": null,
+      "relationship": null,
+      "email": null,
+      "phone": null
+    },
+    "readers": [
+      { "name": "Pierre", "relationship": "fils", "task": "première lecture" }
+    ],
+    "prayerReaders": [
+      { "name": "Claire", "relationship": "petite-fille", "task": "intention de prière" }
+    ]
+  },
+
+  "communication": {
+    "priestEmail": "pere.bernard@example.com",
+    "teamEmails": [
+      "equipe.obseques@example.com"
+    ],
+    "documentLink": null,
+    "emailSubject": null,
+    "emailBody": null,
+    "emailDraftCreated": false
+  },
+
+  "extraction": {
+    "sourceType": "photo",
+    "pageCount": 2,
+    "missingFields": [
+      "référence ou texte de la première lecture",
+      "évangile",
+      "psaume",
+      "références de carnet (n° / page) des chants",
+      "nombre exact d'intentions de prière"
+    ],
+    "contradictions": [],
+    "fieldConfidences": {},
+    "needsHumanReview": []
+  },
+
+  "qualityCheck": {
+    "status": "WARNING",
+    "alerts": [
+      "Évangile manquant",
+      "Référence de la première lecture manquante"
+    ],
+    "recommendedActions": [
+      "Compléter l'évangile et la première lecture avant génération"
+    ]
+  },
+
+  "security": {
+    "containsSensitiveData": true,
+    "humanValidated": false,
+    "retentionPolicy": "delete_or_anonymize_after_defined_period"
+  }
+}
