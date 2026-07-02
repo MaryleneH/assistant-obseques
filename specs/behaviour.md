@@ -73,6 +73,12 @@ Scenario: Unresolved contradiction surfaces as a warning
   Then qualityCheck.status is at least "WARNING"
   And the contradiction is included in the alerts
 
+Scenario: Suggest follow-up questions for the family
+  Given the record has gaps that a family conversation could fill
+  When the Checker runs
+  Then qualityCheck.suggestedQuestions lists concrete questions
+  And each question targets a specific missing or uncertain field
+
 Scenario: Clean record passes
   Given all required fields are present and there are no contradictions
   When the Checker runs

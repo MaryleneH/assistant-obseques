@@ -80,7 +80,8 @@
   "qualityCheck": {
     "status": "PENDING",
     "alerts": [],
-    "recommendedActions": []
+    "recommendedActions": [],
+    "suggestedQuestions": []
   },
 
   "security": {

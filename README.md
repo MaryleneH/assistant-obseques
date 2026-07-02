@@ -1,244 +1,211 @@
-<!-- 🌍 Language: **English** · [Français](README.fr.md) -->
 🌍 **English** · [Français](README.fr.md)
 
 # Assistant Obsèques
 ### A Human-in-the-Loop AI Agent for Funeral Ceremony Preparation
 
-> **This project does not try to automate grief. It automates the repetitive
-> administrative work so that a sacristan can spend more time accompanying
-> families with care, attention, and humanity.**
+> **Kaggle × Google AI Agents Capstone — Concierge Agents track.**
+> The AI proposes; the human always decides. Nothing is ever sent automatically.
 
-<!-- TODO: replace with a real cover image (required for the Kaggle Writeup) -->
-<!-- ![Cover](docs/cover.png) -->
-
-**Track:** Concierge Agents · **Built with:** Google ADK · MCP · A2UI · Antigravity 2.0
-
-- 🔗 **Live demo / project link:** <!-- TODO -->
-- 🎥 **5-min video:** <!-- TODO: YouTube link -->
-- 📝 **Writeup:** <!-- TODO: Kaggle Writeup link -->
+A sacristan prepares Catholic funeral ceremonies: interviewing grieving
+families, deciphering handwritten notes, assembling the order of service,
+coordinating with the priest — hours of careful, repetitive work under
+emotional pressure. **Assistant Obsèques** turns her free-form notes and
+photos into a validated ceremony dossier and its concrete deliverables,
+while keeping her in control at every step.
 
 ---
 
 ## The problem
 
-Preparing a Catholic funeral ceremony takes a sacristan hours of sensitive,
-repetitive work. They meet the family, take notes on the deceased's
-personality, the family's wishes, the readings, hymns, readers, and prayer
-intentions — often across **several handwritten pages**. Later, they re-type
-everything by hand, build the order of service, and email the priest and the
-funeral team.
-
-This work is repetitive, emotionally sensitive, and error-prone: a forgotten
-reader, a missing hymn, the wrong attachment, the wrong recipient, or a clumsy
-phrasing in a grieving context.
-
-<!-- TODO: 2–3 sentences making it concrete and human -->
+Every ceremony means: reading multi-page handwritten preparation sheets,
+re-typing everything into a one-page order of service, drafting emails to the
+priest and the funeral team, and keeping a registry — for someone whose real
+job is to be *present for the families*, not to do data entry. Mistakes are
+costly: a wrong name, a missed reading, a sensitive topic the family asked to
+avoid.
 
 ## Why agents?
 
-<!-- The rubric explicitly asks "Why agents? How can agents uniquely help?" Answer it head-on. -->
-
-The task is naturally a **pipeline of focused, specialized steps** — extract,
-check, write, review — where each step benefits from a narrow prompt and a
-narrow set of tools. A single monolithic prompt would dilute attention and
-hallucinate. A team of specialized ADK sub-agents keeps each step sharp,
-auditable, and safe, while a human stays in control at every gate.
+Each step needs a *narrow* job with its own rules: extraction must be literal
+and never inventive; the safety check must be strict and structured; the
+writing must be warm but constrained. One big prompt cannot hold all these
+tensions at once. A **pipeline of specialized ADK agents** — with a **human
+validation gate in the middle** — keeps every step auditable and safe.
 
 ## What it does
 
-1. The sacristan pastes free-form interview notes — or photographs her
-   annotated preparation sheets (**multi-page**: several photos or PDF pages
-   at once).
-2. An **Extractor agent** consolidates everything into **one** structured
-   record — inventing nothing, flagging what's missing, and **alerting on
-   cross-page contradictions** (page 1 says 10:30, page 3 says 11:00).
-3. A **Checker / Safety agent** surfaces missing required fields, sensitive
-   details to avoid, and inconsistencies.
-4. The sacristan **reviews and corrects** everything in an A2UI validation
-   screen.
-5. A **Writer agent** generates a sober order of service and a universal prayer.
-6. Via **MCP servers**, the system creates a **Google Doc**, a **Gmail draft**
-   (**never sending anything automatically**), and appends **one row per
-   ceremony to the sacristan's own Google Sheet** — her durable registry, in
-   her own Drive.
-7. The sacristan reads, validates, and sends it herself.
+From free-form interview notes **or multi-page photos** of annotated
+preparation sheets, after the sacristan has reviewed and validated the
+extracted record, the assistant produces:
 
-**Core principle: the AI proposes, the human validates.**
+- a **polished one-page Word (.docx) déroulé** (order of service) — the tool
+  the sacristan works in every day; the primary human-facing deliverable;
+- a **Google Doc** — shareable web copy of the same order of service (MCP);
+- a **Gmail draft** to the priest and funeral team — **never auto-sent** (MCP);
+- **one row in the sacristan's own Google Sheet** — her durable registry, in
+  her own Drive (MCP);
+- **suggested follow-up questions** for the next family conversation, derived
+  from what is missing or uncertain.
+
+## The interface
+
+The sacristan uses a **mobile-first web app**: she photographs her preparation
+sheet with her phone, reviews the extracted record on a validation screen
+(missing fields flagged, cross-page contradictions alerted, `avoidMentioning`
+highlighted), corrects, **validates** — and only then generates the
+deliverables. The validation screen uses **A2UI**: it is the
+human-in-the-loop heart of the product.
+
+The UI envelope was **prototyped in Google AI Studio and validated with the
+actual sacristan before any agent code was written** — knowing what has value
+comes before shipping features. Full spec: [`specs/interface.md`](specs/interface.md).
 
 ## Architecture
 
-<!-- TODO: also export a polished docs/architecture.png for the video/writeup.
-     GitHub renders mermaid natively, so this already works as a real diagram. -->
-
 ```mermaid
 flowchart TD
-    S[Sacristan] -->|pastes notes / multi-page photos| UI[A2UI — Validation UI]
-    UI --> ORCH[Orchestrator Agent · ADK]
-    ORCH --> EXT[Extractor Agent<br/>multi-page → ONE record<br/>cross-page contradiction alerts<br/>Gemini multimodal]
-    EXT --> CHK[Checker / Safety Agent<br/>missing fields · avoidMentioning · guardrails]
-    CHK -->|human validation required| UI
-    UI -->|corrected & validated| WRI[Writer Agent<br/>order of service + universal prayer]
-    WRI --> MCP{{MCP Servers}}
-    MCP --> DOCS[Google Docs MCP<br/>creates the document]
-    MCP --> GMAIL[Gmail MCP<br/>draft only — never auto-sends]
-    MCP --> SHEET[Google Sheets MCP<br/>1 row per ceremony<br/>in the sacristan's own Drive]
-    DOCS --> REVIEW[Final human review]
-    GMAIL --> REVIEW
-    SHEET --> REVIEW
-    REVIEW -->|she sends it herself| DONE([Done])
+    N[Notes / multi-page photos] --> EXT[Extractor agent<br/>Gemini multimodal — literal, never inventive]
+    EXT --> REC[Canonical record<br/>specs/schema.json]
+    REC --> CHK[Checker / Safety agent<br/>OK · WARNING · BLOCKING<br/>+ suggested family questions]
+    CHK --> GATE{{Human validation gate — A2UI<br/>the sacristan reviews, corrects, validates}}
+    GATE -->|validated| WRI[Writer agent<br/>order of service + universal prayer]
+    WRI --> DOCX[Runtime skill<br/>one-page Word déroulé]
+    WRI --> DOC[Google Doc — MCP]
+    WRI --> MAIL[Gmail draft — never sent — MCP]
+    REC --> SHEET[Row in her Google Sheet — MCP]
+    DOCX --> FIN[Final human review & send]
+    DOC --> FIN
+    MAIL --> FIN
 ```
+
+Four ADK agents (Orchestrator, Extractor, Checker/Safety, Writer); `Document`,
+`Email` and `Sheet` are **MCP tool calls**, not agents. The one-page Word
+déroulé is rendered by a **runtime skill** (rules + proven script), from the
+ordered `ceremony.liturgySteps` validated against a real order of service.
 
 ## Course concepts demonstrated
 
-<!-- This table maps the mandatory course concepts to exactly where a judge can
-     find them. Fill the "Where to find it" column with real paths/links. -->
-
-| Concept | Demonstrated in | Where to find it |
+| Concept | Where | How |
 | --- | --- | --- |
-| **Agent / Multi-agent system (ADK)** | Code | `agents/` — Orchestrator + Extractor + Checker + Writer sub-agents |
-| **MCP Server** | Code | `integrations/mcp/` — Google Docs, Gmail & **Google Sheets** MCP servers (consumed, not hand-wrapped) |
-| **Antigravity 2.0** | Video | Built in Antigravity 2.0 (IDE + command center) — shown at `mm:ss` in the demo video |
-| **Security features** | Code + Video | Email allowlist, data minimization, no-auto-send, `avoidMentioning` guardrail, terminal sandboxing — `security/` |
-| **Deployability** | Video | Deployed via Agents CLI to Agent Engine (Gemini Enterprise Agent Platform), see "Deployment" |
-| **Agent skills** | Code + Video | `.agent/skills/` (build-time) + Agents CLI workflow ; bonus: runtime skill `skills/` (one-page Word order-of-service formatter) |
-
-> Minimum required: 3 of 6. This project demonstrates <!-- N -->/6.
+| **ADK multi-agents** | `agents/` | Orchestrator + Extractor + Checker + Writer pipeline |
+| **MCP** | `integrations/mcp/` | Google Docs, Gmail, Google Sheets servers |
+| **Antigravity 2.0** | whole build | Spec-driven build (`AGENTS.md` + `specs/`), build-time skills, artifacts shown in the video |
+| **Security** | `security/`, hooks | Human gate, allow/deny lists, terminal sandboxing, gitleaks pre-commit, fictional-data-only rule |
+| **Deployability** | Cloud Run | `adk deploy cloud_run` — private, scale-to-zero, EU region |
+| **Agent Skills** | `.agent/skills/` + `skills/` | 2 build-time skills (commit format, secret scan) + 1 runtime skill (Word déroulé formatter) |
 
 ## Tech stack
 
-- **Agent framework:** Google Agent Development Kit (ADK)
-- **Reasoning models:** Gemini <!-- TODO: exact models --> — EU region target
-  (`europe-west9`, Paris) <!-- confirm model availability at wiring time -->
-- **Tool interoperability:** MCP (Google Docs, Gmail drafts, Google Sheets)
-- **Persistence:** the sacristan's own **Google Sheet** (one row per ceremony
-  — no third-party database)
-- **Generative UI:** A2UI for the human validation screen
-- **Coding environment:** Antigravity 2.0 (IDE + command center) + Agents CLI
-- **Deployment:** Agent Engine (Gemini Enterprise Agent Platform)
-- **Evaluation:** LLM-as-judge over a fixed test case
-- **Observability (bonus):** Langfuse via OpenTelemetry (EU region)
+- **Python 3.13** (pinned), **Google ADK** (multi-agent pipeline)
+- **Gemini** multimodal (photo/notes extraction) + reasoning (checking, writing)
+- **MCP servers**: Google Docs, Gmail, Google Sheets
+- **A2UI** validation screen, in a mobile-first web app (`ui/`)
+- **Runtime skill**: Node.js one-page Word renderer (`skills/deroule-obseques/`)
+- **Deployment**: Cloud Run, `europe-west9` (Paris) — private, scale-to-zero
+- **Observability** (bonus): Langfuse via OpenTelemetry, EU region
 
 ## Human-in-the-loop & safety
 
-- **Nothing is ever sent automatically.** Emails are created as *drafts* only.
-- **No invention.** Missing information is returned as `null` and flagged, never
-  guessed. Fields extracted from handwriting are marked `needsHumanReview`.
-- **The data stays with the user.** Ceremony records live in the sacristan's
-  **own Google Sheet, in her own Drive** — not on a third-party server. Raw
-  photos are not stored in the Sheet.
-- **Data minimization** on sensitive personal, family, and religious data;
-  EU-region processing as design target (GDPR).
-- **`avoidMentioning`** field: topics the family asked not to raise are carried
-  through the whole pipeline and enforced by the Safety agent.
-- **Email allowlist + roles** (admin / sacristan / priest / team). No public
-  access, no family access in v1.
-- **Retention:** demo data is fictional; production data would be deleted or
-  anonymized after a defined period.
+- **Nothing is ever sent automatically.** Emails are drafts; sending is a human act.
+- **No invention.** Empty fields render as "à compléter"; doubts go to
+  *Points à vérifier*, never silently filled.
+- **`avoidMentioning`** travels through the whole pipeline: topics the family
+  asked to avoid never appear in any output.
+- **A `BLOCKING` status disables generation** until the human resolves it.
+- Build-side: terminal sandboxing + allow/deny lists in Antigravity, gitleaks
+  pre-commit hook, fictional data only in the repo (hard rule 7).
 
 ## Getting started
 
 ### Prerequisites
-<!-- TODO: pin versions -->
-- Python <!-- 3.x -->
-- Google ADK <!-- version -->
-- A Google Cloud project with Gemini <!-- API / Agent Platform --> enabled
-- Node.js <!-- if needed for the A2UI frontend -->
+- Python 3.13 · Node.js 20+ · a Google Cloud project (billing enabled)
+- `gcloud` CLI authenticated
 
 ### Install
 ```bash
-git clone https://github.com/MaryleneH/assistant-obseques.git
-cd assistant-obseques
-# TODO: install command, e.g.
-pip install -r requirements.txt
+# TODO after scaffold: e.g. uv sync
 ```
 
 ### Configure secrets
-> 🚨 **Never commit API keys or passwords.** Use environment variables.
 ```bash
 cp .env.example .env
 # then fill .env with your own credentials (this file is gitignored)
 ```
-<!-- .env.example lists the required vars, incl. optional LANGFUSE_* keys -->
 
 ### Run
 ```bash
-# TODO: run command, e.g.
-adk run agents/orchestrator
+# TODO after scaffold: e.g. adk web
 ```
 
 ## Demo & test case
 
-The repo ships with a **fictional** end-to-end example (no real personal data):
-
-> Funeral of Mme Jeanne Martin, 84, Tuesday July 7 at 10:30 at Saint-Martin
-> church. Discreet, faithful, devoted to her grandchildren. Her son Pierre will
-> read the first reading. Entrance hymn "Trouver dans ma vie ta présence".
-> Do not dwell on her illness. Priest: Father Bernard. Send the order of service
-> to pere.bernard@example.com and equipe.obseques@example.com.
-
-<!-- TODO: add a demo GIF — docs/demo.gif -->
-See `examples/jeanne_martin/` for the input notes (including the multi-page
-photo set) and the expected structured output.
+The repo ships a fully **fictional** golden case — **Jeanne Martin, 84** — in
+`examples/jeanne_martin/`: two pages of interview notes (`notes.md`) and the
+expected extraction (`expected.json`), including missing fields, a WARNING
+status and suggested family questions. It drives both the demo and the eval.
 
 ## Deployment
 
-<!-- Ticks the "Deployability" concept. Deploying to a live public endpoint is
-     not required for judging, but documenting it (and showing it in the video)
-     scores. -->
 ```bash
-# TODO: e.g.
-agents-cli deploy
+adk deploy cloud_run   # target: europe-west9 (Paris)
 ```
-<!-- Target: Agent Engine (Gemini Enterprise Agent Platform). Use the exact
-     names the tooling displays; describe how to reproduce + required IAM/scopes. -->
+
+**Cloud Run** hosts the agents *and* the web interface as one unit: private
+(auth-gated — only the sacristan), **scale-to-zero** (near-free for a single
+user), **EU region** for GDPR alignment. See `specs/interface.md` for the
+full deployment rationale.
 
 ## Project structure
+
 ```
-.
-├── AGENTS.md                # hard rules for the coding agent (root, multi-tool standard)
-├── specs/                   # BDD spec, JSON schema, target architecture
-├── .agent/skills/           # BUILD-TIME skills for Antigravity (engineering habits)
-├── agents/                  # ADK sub-agents (orchestrator, extractor, checker, writer)
-├── tools/                   # custom RUNTIME tool code (e.g. photo extraction call)
-├── skills/                  # RUNTIME skills (e.g. one-page Word order-of-service formatter)
+assistant-obseques/
+├── AGENTS.md                # the contract: stack + 8 hard rules
+├── specs/                   # architecture, schema, BDD scenarios, interface
+│   ├── architecture.md
+│   ├── schema.json
+│   ├── behaviour.md
+│   └── interface.md
+├── .agent/skills/           # build-time skills (Antigravity)
+├── agents/                  # ADK agents (built in Antigravity)
+├── tools/                   # runtime custom tools
+├── skills/deroule-obseques/ # runtime skill: one-page Word renderer
 ├── integrations/mcp/        # MCP config (Docs, Gmail, Sheets)
-├── ui/                      # A2UI validation screen
-├── security/                # allowlist, guardrails, data-handling policy
-├── eval/                    # LLM-as-judge evaluation
-├── examples/jeanne_martin/  # fictional test case
-├── docs/                    # diagrams, captures
-├── README.md                # English (this file)
-└── README.fr.md             # French (product-facing, for the sacristan)
+├── ui/                      # A2UI validation screen / web app
+├── security/                # allowlists, guardrails, data policy
+├── eval/                    # LLM-as-judge eval (Jeanne Martin case)
+├── examples/jeanne_martin/  # fictional golden case
+└── docs/                    # diagrams, captures
 ```
 
 ## Evaluation
 
-A lightweight **LLM-as-judge** eval scores the extraction and the generated
-order of service against acceptance criteria on the fixed Jeanne Martin case:
-does it invent fields? does it flag missing ones? is the tone sober? is the
-`avoidMentioning` constraint respected? Agent runs are traced with **Langfuse**
-(OpenTelemetry) to make the multi-agent cascade observable.
-<!-- TODO: point to eval/ and summarize results -->
+An **LLM-as-judge** eval runs the pipeline on the Jeanne Martin case and
+scores the extraction against `expected.json` — including the *absence of
+invention* (missing fields must stay missing).
+
+## Method: value before features
+
+Ten days before the competition, the UI was prototyped in **Google AI Studio**
+and validated with the actual end user. With AI, delivering functionality is
+easy; knowing what is valuable and useful is the real work. The competition
+build is the production system behind that validated screen: AI Studio for
+discovery → Antigravity for the build → ADK/MCP for the system → Cloud Run
+for delivery.
 
 ## Roadmap
 
-- **Edge-first vision:** on-device extraction (Gemini Nano / Gemma via Google AI
-  Edge) so a photo of handwritten notes never leaves the phone — inspired by
-  Google AI Edge Gallery. *Designed for, not yet built.*
-- Multi-parish support, role-based dashboards, richer liturgical assistant.
+- **v1 (competition):** full pipeline, validation gate, four deliverables,
+  Cloud Run deployment, eval, observability.
+- **Post-competition (the real product):** hardened authentication, daily-use
+  UX polish for a non-technical user, ceremony history, photo robustness.
 
 ## Data & privacy
 
-All data in this repository is **fictional**. No real family, deceased,
-priest, or team information is included. The design assumes sensitive data in
-production and applies minimization, human validation, no auto-send, user-owned
-storage (the sacristan's Google Sheet), EU-region processing as target, and a
-retention policy.
-
-## Team & acknowledgments
-
-<!-- TODO -->
-Built for the Kaggle × Google *5-Day AI Agents: Intensive Vibe Coding* capstone.
+- Ceremony data lives in the **sacristan's own Google Sheet / Drive** — no
+  third-party database.
+- **EU processing target** (`europe-west9`, Paris).
+- The repository contains **fictional data only**.
+- Raw photos are not persisted server-side beyond processing.
 
 ## License
 

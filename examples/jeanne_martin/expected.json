@@ -89,6 +89,11 @@
     ],
     "recommendedActions": [
       "Compléter l'évangile et la première lecture avant génération"
+    ],
+    "suggestedQuestions": [
+      "Quel est le contact (email / téléphone) de la famille ?",
+      "Quelles sont les références de carnet (n° / page) des chants choisis ?",
+      "Qui lira le psaume, et l'évangile est-il choisi ?"
     ]
   },
 

@@ -29,7 +29,7 @@ the human intervene at exactly one well-defined gate.
 | --- | --- | --- | --- | --- |
 | **Orchestrator** | Runs the pipeline, enforces the human gate, calls MCP tools | user notes / photos | final artifacts | reasoning |
 | **Extractor** | Multi-page notes → **one** structured record; flags missing, alerts contradictions, marks handwriting `needsHumanReview` | notes / photos + `schema.json` | populated record | **multimodal** |
-| **Checker / Safety** | Validates completeness, recipients, contradictions, `avoidMentioning`; emits `OK / WARNING / BLOCKING` | record | `qualityCheck` block | reasoning |
+| **Checker / Safety** | Validates completeness, recipients, contradictions, `avoidMentioning`; emits `OK / WARNING / BLOCKING`; suggests follow-up questions for the family | record | `qualityCheck` block | reasoning |
 | **Writer** | Sober order of service + universal prayer; no invention; respects `avoidMentioning` | **validated** record | order of service + prayer | reasoning |
 
 `Document`, `Email`, and `Sheet` are **not** agents — they are **MCP tool calls**
