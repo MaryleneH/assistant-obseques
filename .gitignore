@@ -26,3 +26,11 @@ dist/
 # Données réelles — jamais dans Git
 data/
 *.local.*
+
+# Antigravity local tool state — never versioned.
+# Antigravity 2.0 centralizes configuration in the user's home (~/.gemini);
+# any .antigravity*/ folder appearing in the workspace is a machine-local
+# cache (legacy 1.x / CLI), not source code. Excluded to keep the repo
+# clean and reproducible for anyone cloning it.
+.antigravity/
+.antigravitycli/
