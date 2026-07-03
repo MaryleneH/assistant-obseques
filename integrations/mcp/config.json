@@ -1,0 +1,26 @@
+{
+  "_todo": "Replace @google/mcp-server-* with official identifiers from Google Cloud documentation at wiring phase",
+  "mcpServers": {
+    "google-docs": {
+      "command": "npx",
+      "args": ["-y", "@google/mcp-server-google-docs"],
+      "env": {
+        "GOOGLE_APPLICATION_CREDENTIALS": "./credentials.local.json"
+      }
+    },
+    "gmail": {
+      "command": "npx",
+      "args": ["-y", "@google/mcp-server-gmail"],
+      "env": {
+        "GOOGLE_APPLICATION_CREDENTIALS": "./credentials.local.json"
+      }
+    },
+    "google-sheets": {
+      "command": "npx",
+      "args": ["-y", "@google/mcp-server-google-sheets"],
+      "env": {
+        "GOOGLE_APPLICATION_CREDENTIALS": "./credentials.local.json"
+      }
+    }
+  }
+}

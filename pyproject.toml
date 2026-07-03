@@ -1,0 +1,26 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "assistant-obseques"
+version = "0.1.0"
+description = "Assistant Obsèques"
+requires-python = "==3.13.*"
+dependencies = [
+    "google-adk",
+    "pydantic"
+]
+
+[project.optional-dependencies]
+obs = [
+    "opentelemetry-api",
+    "opentelemetry-sdk",
+    "langfuse"
+]
+dev = [
+    "pytest"
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["agents", "tools"]
