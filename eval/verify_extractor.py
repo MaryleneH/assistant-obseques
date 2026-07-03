@@ -50,7 +50,13 @@ def main():
     extracted_dict = record.model_dump()
     expected_dict = expected_record.model_dump()
     
+    extractor_fields = ['deceased', 'ceremony', 'participants', 'communication', 'extraction']
+    
     for key in expected_dict:
+        if key not in extractor_fields:
+            print(f"[SKIP] {key}: downstream-stage field (not compared).")
+            continue
+            
         if expected_dict[key] == extracted_dict[key]:
             match_count += 1
             print(f"[MATCH] {key} matches expected.")
