@@ -5,6 +5,7 @@ Implements a hybrid checking logic (Deterministic rules + LLM judgment).
 import os
 import sys
 import json
+import time
 from pydantic import BaseModel, Field
 from google import genai
 from google.genai import types
@@ -125,26 +126,35 @@ def check_record(record: Record) -> Record:
             f"Record data:\n{record.model_dump_json(indent=2)}"
         )
         
-        response = client.models.generate_content(
-            model=model_name,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                system_instruction="You are a quality checker for an AI assistant helping a sacristan prepare Catholic funerals.",
-                response_mime_type="application/json",
-                response_schema=schema_dict,
-                temperature=0.0
-            )
-        )
-        
-        if isinstance(response.parsed, CheckerLLMResponse):
-            llm_res = response.parsed
-        elif isinstance(response.parsed, dict):
-            llm_res = CheckerLLMResponse(**response.parsed)
-        else:
-            llm_res = CheckerLLMResponse(**json.loads(response.text))
-            
-        suggested_questions = llm_res.suggestedQuestions
-        coherence_observations = llm_res.coherenceObservations
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        system_instruction="You are a quality checker for an AI assistant helping a sacristan prepare Catholic funerals.",
+                        response_mime_type="application/json",
+                        response_schema=schema_dict,
+                        temperature=0.0
+                    )
+                )
+                
+                if isinstance(response.parsed, CheckerLLMResponse):
+                    llm_res = response.parsed
+                elif isinstance(response.parsed, dict):
+                    llm_res = CheckerLLMResponse(**response.parsed)
+                else:
+                    llm_res = CheckerLLMResponse(**json.loads(response.text))
+                
+                suggested_questions = llm_res.suggestedQuestions
+                coherence_observations = llm_res.coherenceObservations
+                break
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    raise e
+                print(f"Checker attempt {attempt + 1} failed: {e}. Retrying...", file=sys.stderr)
+                time.sleep(2)
         
     except Exception as e:
         print(f"Warning: LLM suspenders failed: {e}", file=sys.stderr)

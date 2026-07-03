@@ -74,27 +74,33 @@ def extract_record(notes_or_photos: Any) -> Record:
     # Inject today's date to give the model a clock for year inference
     current_instruction = _INSTRUCTIONS + f"\n[SYSTEM DATA]\nToday's Date: {date.today().isoformat()}"
         
-    response = client.models.generate_content(
-        model=model_name,
-        contents=prompt_content,
-        config=types.GenerateContentConfig(
-            system_instruction=current_instruction,
-            response_mime_type="application/json",
-            response_schema=schema_dict,
-            temperature=0.0
-        )
-    )
-    
-    # Check if the client parsed it into a pydantic model or dict
-    if isinstance(response.parsed, Record):
-        return response.parsed
-    elif isinstance(response.parsed, dict):
-        return Record(**response.parsed)
-    else:
-        # Fallback manual parse
+    import time
+    max_retries = 3
+    for attempt in range(max_retries):
         try:
-            record_dict = json.loads(response.text)
-            return Record(**record_dict)
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt_content,
+                config=types.GenerateContentConfig(
+                    system_instruction=current_instruction,
+                    response_mime_type="application/json",
+                    response_schema=schema_dict,
+                    temperature=0.0
+                )
+            )
+            
+            # Check if the client parsed it into a pydantic model or dict
+            if isinstance(response.parsed, Record):
+                return response.parsed
+            elif isinstance(response.parsed, dict):
+                return Record(**response.parsed)
+            else:
+                # Fallback manual parse
+                record_dict = json.loads(response.text)
+                return Record(**record_dict)
         except Exception as e:
-            print("Failed to parse response into Record:", response.text)
-            raise e
+            if attempt == max_retries - 1:
+                print("Failed to extract record:", e)
+                raise
+            print(f"Extraction attempt {attempt + 1} failed: {e}. Retrying...", file=sys.stderr)
+            time.sleep(2)

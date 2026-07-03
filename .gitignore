@@ -34,3 +34,4 @@ data/
 # clean and reproducible for anyone cloning it.
 .antigravity/
 .antigravitycli/
+output/

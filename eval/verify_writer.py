@@ -71,6 +71,33 @@ def main():
     # c) status is "ceremony_generated"
     is_generated_status = record.status == CeremonyStatus.ceremony_generated
     print(f"Assertion status == 'ceremony_generated': {'PASS' if is_generated_status else 'FAIL'}")
+    
+    print("\n--- Safety-Net Negative Test ---")
+    print("Forcing 'ses petits-enfants' into avoidMentioning and running Writer...")
+    # Reset status so Writer accepts it
+    record.status = CeremonyStatus.ready_for_generation
+    record.deceased.avoidMentioning = ["ses petits-enfants"]
+    try:
+        record = write_record(record)
+        
+        full_text_neg = (
+            (record.ceremony.motDAccueil or "") + " " +
+            " ".join(record.ceremony.universalPrayerIntentions) + " " +
+            (record.communication.emailSubject or "") + " " +
+            (record.communication.emailBody or "")
+        ).lower()
+        
+        has_petits_enfants = "petits-enfants" in full_text_neg
+        if not has_petits_enfants:
+            print("Outcome: PASS (Safety retry successfully removed 'petits-enfants')")
+        else:
+            print("Outcome: FAIL ('petits-enfants' still present!)")
+            
+    except ValueError as e:
+        if "avoidMentioning" in str(e):
+            print("Outcome: PASS (Writer raised explicit safety exception)")
+        else:
+            print(f"Outcome: FAIL (Unexpected exception: {e})")
 
 if __name__ == "__main__":
     main()
