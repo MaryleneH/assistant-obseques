@@ -19,20 +19,31 @@ def generate_with_resilience(client, model, **kwargs):
                 model=model,
                 **kwargs
             )
-        except errors.ServerError as e:
-            if e.code == 503:
+        except (errors.APIError, getattr(errors, 'ClientError', type('Dummy', (Exception,), {}))) as e:
+            if getattr(e, 'code', None) == 503:
                 if attempt == max_retries:
                     break  # Exit loop to trigger fallback if available
                 
                 backoff = base_backoff * (2 ** (attempt - 1))
                 print(f"model busy, retry {attempt}/{max_retries} in {backoff}s...", file=sys.stderr)
                 time.sleep(backoff)
+            elif getattr(e, 'code', None) == 429:
+                if attempt == max_retries:
+                    break
+                print(f"model rate limited (429), retry {attempt}/{max_retries} in 60s...", file=sys.stderr)
+                time.sleep(60)
             else:
-                # Other ServerErrors propagate immediately
+                # Other APIErrors propagate immediately
                 raise e
         except Exception as e:
-            # Client errors (like 429) or other exceptions propagate immediately
-            raise e
+            if "429" in str(e) and "RESOURCE_EXHAUSTED" in str(e):
+                if attempt == max_retries:
+                    break
+                print(f"model rate limited (429), retry {attempt}/{max_retries} in 60s...", file=sys.stderr)
+                time.sleep(60)
+            else:
+                # Client errors or other exceptions propagate immediately
+                raise e
             
     # If we exhausted retries for 503, try fallback model if available
     fallback_model = os.getenv("FALLBACK_MODEL")

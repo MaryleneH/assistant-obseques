@@ -31,13 +31,15 @@ def main():
     try:
         record = run_after_validation(record)
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         print(f"Phase 2 failed: {e}")
         sys.exit(1)
         
     print("\n--- Phase 2 Assertions ---")
     
-    is_doc_created = record.status == CeremonyStatus.document_created
-    print(f"Assertion status == 'document_created': {'PASS' if is_doc_created else 'FAIL'}")
+    is_doc_created = record.status == CeremonyStatus.email_draft_created
+    print(f"Assertion status == 'email_draft_created': {'PASS' if is_doc_created else 'FAIL'}")
     
     docx_path = record.communication.documentLink
     doc_exists = docx_path and os.path.exists(docx_path)

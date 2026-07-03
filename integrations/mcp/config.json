@@ -1,26 +1,17 @@
 {
-  "_todo": "Replace @google/mcp-server-* with official identifiers from Google Cloud documentation at wiring phase",
   "mcpServers": {
-    "google-docs": {
-      "command": "npx",
-      "args": ["-y", "@google/mcp-server-google-docs"],
-      "env": {
-        "GOOGLE_APPLICATION_CREDENTIALS": "./credentials.local.json"
-      }
-    },
     "gmail": {
-      "command": "npx",
-      "args": ["-y", "@google/mcp-server-gmail"],
-      "env": {
-        "GOOGLE_APPLICATION_CREDENTIALS": "./credentials.local.json"
-      }
+      "command": "remote",
+      "args": ["https://gmailmcp.googleapis.com/mcp/v1"],
+      "_todo": "Official Gmail MCP server integrated at handshake level (initialize+list_tools OK; no send tool exists — safety by construction). Tool invocation is Developer-Preview-gated as of July 2026; drafts are created via the Gmail API with identical OAuth scopes until the preview opens."
     },
     "google-sheets": {
-      "command": "npx",
-      "args": ["-y", "@google/mcp-server-google-sheets"],
+      "command": "npx.cmd",
+      "args": ["-y", "@mcp-z/mcp-sheets", "--auth=service-account"],
       "env": {
-        "GOOGLE_APPLICATION_CREDENTIALS": "./credentials.local.json"
-      }
+        "GOOGLE_SERVICE_ACCOUNT_KEY_FILE": "./service-account.json"
+      },
+      "_todo": "Community server. Header bootstrap on first append."
     }
   }
 }

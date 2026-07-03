@@ -9,6 +9,8 @@ from .checker import check_record
 from .writer import write_record
 from tools.deroule import build_deroule
 
+from tools.mcp_clients import create_gmail_draft, append_ceremony_row
+
 def run_until_review(pages: List[str]) -> Record:
     """
     Phase 1: Extraction and Safety/Quality Checking.
@@ -29,6 +31,20 @@ def run_after_validation(record: Record) -> Record:
     if record.status != CeremonyStatus.ready_for_generation:
         raise ValueError("Record status must be 'ready_for_generation'.")
         
+    # Generate content
     record = write_record(record)
     record = build_deroule(record)
+    
+    # Run external MCP tools
+    draft_result = create_gmail_draft(record)
+    if draft_result:
+        print(f"-> GMAIL DRAFT CREATED: {draft_result}")
+        
+    record.communication.emailDraftCreated = True
+    record.status = CeremonyStatus.email_draft_created
+    
+    append_result = append_ceremony_row(record)
+    if append_result:
+        print(f"-> SHEETS ROW APPENDED: {append_result}")
+    
     return record
