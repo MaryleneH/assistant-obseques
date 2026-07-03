@@ -220,6 +220,12 @@ textarea:focus, input:focus {
     font-weight: 600;
 }
 
+/* Deroule step labels styled as headings */
+[id^="tf_step_lbl_"] {
+    font-weight: bold;
+    font-family: 'Georgia', serif;
+}
+
 /* A2UI Layout Overrides */
 a2ui-surface {
     --a2ui-spacing-m: 1.5rem;

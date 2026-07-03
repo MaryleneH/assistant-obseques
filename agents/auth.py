@@ -52,8 +52,8 @@ def _run_interactive_auth():
     Runs the interactive OAuth consent flow and saves the token.
     Intended to be run manually by the user.
     """
-    from dotenv import load_dotenv
-    load_dotenv()
+    from utils.env import load_environment
+    load_environment()
     
     client_id = os.getenv("GMAIL_OAUTH_CLIENT_ID")
     client_secret = os.getenv("GMAIL_OAUTH_CLIENT_SECRET")

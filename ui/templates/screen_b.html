@@ -24,8 +24,48 @@
     </div>
     
     <div class="a2ui-container">
-        <!-- The Lit element we created in client.ts -->
-        <my-app></my-app>
+        <div class="card">
+        <h3 class="label-micro">INFORMATIONS GÉNÉRALES</h3>
+        <my-app surface-id="info_generales"></my-app>
+    </div>
+
+    <div class="card">
+        <h3 class="label-micro">FAMILLE & CONTACTS</h3>
+        <my-app surface-id="famille_contacts"></my-app>
+    </div>
+
+    <div class="card">
+        <h3 class="label-micro">PROFIL & VIE DU DÉFUNT</h3>
+        <my-app surface-id="profil_vie"></my-app>
+    </div>
+
+    <div class="card">
+        <h3 class="label-micro">DÉROULÉ DE LA CÉLÉBRATION</h3>
+        <my-app surface-id="deroule"></my-app>
+    </div>
+
+    <div class="card">
+        <h3 class="label-micro">PRIÈRE UNIVERSELLE</h3>
+        <my-app surface-id="priere"></my-app>
+    </div>
+
+    <div class="card" style="background-color: var(--warning-amber); border-color: var(--warning-amber-text);">
+        <h3 class="label-micro" style="color: var(--warning-amber-text);">⚠️ POINTS À VÉRIFIER & INCERTITUDES</h3>
+        <my-app surface-id="points_verif"></my-app>
+    </div>
+
+    <div class="card">
+        <h3 class="label-micro">QUESTIONS SUGGÉRÉES À LA FAMILLE</h3>
+        <my-app surface-id="questions"></my-app>
+    </div>
+
+    <div class="card" style="background-color: #FFEBEE; border-color: var(--error-red);">
+        <h3 class="label-micro" style="color: var(--error-red);">À NE PAS MENTIONNER</h3>
+        <my-app surface-id="avoid_mentioning"></my-app>
+    </div>
+
+    <div class="card">
+        <my-app surface-id="actions"></my-app>
     </div>
     
     <script type="module" src="/static/bundle.js"></script>

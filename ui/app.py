@@ -96,7 +96,6 @@ async def get_messages():
     if not session_record:
         return []
     
-    # Pre-fill canonical liturgy steps if missing
     existing_labels = [s.label.lower() for s in session_record.ceremony.liturgySteps if s.label]
     for cstep in get_canonical_steps():
         if cstep["label"].lower() not in existing_labels:
@@ -112,151 +111,183 @@ async def get_messages():
         
     record_dict = session_record.model_dump()
     
-    messages = [
-        {
+    messages = []
+    
+    def add_surface(surface_id, root_children, components_list):
+        components_list.append({"id": "root", "component": "Column", "children": root_children})
+        messages.append({
             "version": "v0.9",
             "createSurface": {
-                "surfaceId": "main",
+                "surfaceId": surface_id,
                 "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json"
             }
-        },
-        {
+        })
+        messages.append({
             "version": "v0.9",
             "updateDataModel": {
-                "surfaceId": "main",
+                "surfaceId": surface_id,
                 "value": record_dict
             }
-        }
-    ]
+        })
+        messages.append({
+            "version": "v0.9",
+            "updateComponents": {
+                "surfaceId": surface_id,
+                "components": components_list
+            }
+        })
     
-    components = []
-    def add_c(comp):
-        components.append(comp)
-        return comp["id"]
-        
-    root_children = []
+    # 1. info_generales
+    c_info = []
+    def add_info(c): c_info.append(c); return c["id"]
     
-    # Status Banner
-    status = session_record.qualityCheck.status
-    if status == "BLOCKING":
-        root_children.append(add_c({
-            "id": "banner_blocking", "component": "Card", "child": "banner_txt_blocking"
-        }))
-        add_c({"id": "banner_txt_blocking", "component": "Text", "text": "BLOQUANT: Veuillez vérifier les incohérences ou champs manquants."})
-    elif status == "WARNING":
-        root_children.append(add_c({
-            "id": "banner_warning", "component": "Card", "child": "banner_txt_warning"
-        }))
-        add_c({"id": "banner_txt_warning", "component": "Text", "text": "ATTENTION: Des points nécessitent votre vérification."})
-
-    # Section 1: Informations générales
-    col1_children = []
-    col1_children.append(add_c({"id": "tf_fn", "component": "TextField", "label": "Prénom du défunt", "value": {"path": "/deceased/firstName"}}))
-    col1_children.append(add_c({"id": "tf_ln", "component": "TextField", "label": "Nom du défunt", "value": {"path": "/deceased/lastName"}}))
-    col1_children.append(add_c({"id": "tf_date", "component": "TextField", "label": "Date", "value": {"path": "/ceremony/date"}}))
-    col1_children.append(add_c({"id": "tf_time", "component": "TextField", "label": "Heure", "value": {"path": "/ceremony/time"}}))
-    col1_children.append(add_c({"id": "tf_church", "component": "TextField", "label": "Église", "value": {"path": "/ceremony/church"}}))
-    col1_children.append(add_c({"id": "tf_cele", "component": "TextField", "label": "Célébrant", "value": {"path": "/ceremony/celebrant"}}))
-    add_c({"id": "col1", "component": "Column", "children": col1_children})
-    root_children.append(add_c({"id": "card1", "component": "Card", "child": "col1"}))
+    r1 = []
+    r1.append(add_info({"id": "tf_fn", "component": "TextField", "label": "Prénom", "value": {"path": "/deceased/firstName"}}))
+    r1.append(add_info({"id": "tf_ln", "component": "TextField", "label": "Nom", "value": {"path": "/deceased/lastName"}}))
+    add_info({"id": "row_name", "component": "Row", "children": r1})
     
-    # Section 2: Famille & contacts
-    col2_children = []
-    col2_children.append(add_c({"id": "tf_cname", "component": "TextField", "label": "Contact principal", "value": {"path": "/participants/mainFamilyContact/name"}}))
-    col2_children.append(add_c({"id": "tf_crel", "component": "TextField", "label": "Lien de parenté", "value": {"path": "/participants/mainFamilyContact/relationship"}}))
-    col2_children.append(add_c({"id": "tf_cphone", "component": "TextField", "label": "Téléphone", "value": {"path": "/participants/mainFamilyContact/phone"}}))
-    col2_children.append(add_c({"id": "tf_cemail", "component": "TextField", "label": "Email", "value": {"path": "/participants/mainFamilyContact/email"}}))
-    add_c({"id": "col2", "component": "Column", "children": col2_children})
-    root_children.append(add_c({"id": "card2", "component": "Card", "child": "col2"}))
+    r2 = []
+    r2.append(add_info({"id": "tf_date", "component": "TextField", "label": "Date", "value": {"path": "/ceremony/date"}}))
+    r2.append(add_info({"id": "tf_time", "component": "TextField", "label": "Heure", "value": {"path": "/ceremony/time"}}))
+    add_info({"id": "row_datetime", "component": "Row", "children": r2})
     
-    # Section 3: Profil & vie
-    col3_children = []
-    # Simplified to TextFields for MVP instead of dynamic chips for now
-    col3_children.append(add_c({"id": "tf_life", "component": "TextField", "label": "Éléments de vie", "value": {"path": "/deceased/lifeElements/0"}}))
-    col3_children.append(add_c({"id": "tf_traits", "component": "TextField", "label": "Traits de caractère", "value": {"path": "/deceased/personalityTraits/0"}}))
-    add_c({"id": "col3", "component": "Column", "children": col3_children})
-    root_children.append(add_c({"id": "card3", "component": "Card", "child": "col3"}))
-
-    # Section 4: Déroulé
-    col4_children = []
+    r3 = []
+    r3.append(add_info({"id": "tf_church", "component": "TextField", "label": "Église", "value": {"path": "/ceremony/church"}}))
+    r3.append(add_info({"id": "tf_cele", "component": "TextField", "label": "Célébrant", "value": {"path": "/ceremony/celebrant"}}))
+    add_info({"id": "row_place", "component": "Row", "children": r3})
+    
+    add_surface("info_generales", ["row_name", "row_datetime", "row_place"], c_info)
+    
+    # 2. famille_contacts
+    c_fam = []
+    def add_fam(c): c_fam.append(c); return c["id"]
+    
+    add_fam({"id": "tf_cname", "component": "TextField", "label": "Contact principal", "value": {"path": "/participants/mainFamilyContact/name"}})
+    add_fam({"id": "tf_crel", "component": "TextField", "label": "Lien de parenté", "value": {"path": "/participants/mainFamilyContact/relationship"}})
+    r4 = []
+    r4.append(add_fam({"id": "tf_cphone", "component": "TextField", "label": "Téléphone", "value": {"path": "/participants/mainFamilyContact/phone"}}))
+    r4.append(add_fam({"id": "tf_cemail", "component": "TextField", "label": "Email", "value": {"path": "/participants/mainFamilyContact/email"}}))
+    add_fam({"id": "row_contact", "component": "Row", "children": r4})
+    
+    add_surface("famille_contacts", ["tf_cname", "tf_crel", "row_contact"], c_fam)
+    
+    # 3. profil_vie
+    c_prof = []
+    def add_prof(c): c_prof.append(c); return c["id"]
+    add_prof({"id": "tf_life", "component": "TextField", "label": "Éléments de vie", "value": {"path": "/deceased/lifeElements/0"}})
+    add_prof({"id": "tf_traits", "component": "TextField", "label": "Traits de caractère", "value": {"path": "/deceased/personalityTraits/0"}})
+    add_surface("profil_vie", ["tf_life", "tf_traits"], c_prof)
+    
+    # 4. deroule
+    c_der = []
+    def add_der(c): c_der.append(c); return c["id"]
+    der_children = []
     for i, step in enumerate(session_record.ceremony.liturgySteps):
-        row_id = f"step_row_{i}"
-        tf_lbl_id = f"tf_step_lbl_{i}"
-        tf_ref_id = f"tf_step_ref_{i}"
-        tf_tit_id = f"tf_step_tit_{i}"
+        r_id = f"row_step_{i}"
+        lbl_id = f"tf_step_lbl_{i}"
+        ref_id = f"tf_step_ref_{i}"
+        tit_id = f"tf_step_tit_{i}"
         
-        col4_children.append(add_c({"id": tf_lbl_id, "component": "TextField", "label": f"Étape {i+1} - Rôle", "value": {"path": f"/ceremony/liturgySteps/{i}/label"}}))
-        col4_children.append(add_c({"id": tf_ref_id, "component": "TextField", "label": "Référence", "value": {"path": f"/ceremony/liturgySteps/{i}/reference"}}))
-        col4_children.append(add_c({"id": tf_tit_id, "component": "TextField", "label": "Titre", "value": {"path": f"/ceremony/liturgySteps/{i}/title"}}))
+        row_children = []
+        row_children.append(add_der({"id": lbl_id, "component": "TextField", "label": "Étape", "value": {"path": f"/ceremony/liturgySteps/{i}/label"}}))
+        row_children.append(add_der({"id": ref_id, "component": "TextField", "label": "Référence", "value": {"path": f"/ceremony/liturgySteps/{i}/reference"}}))
+        row_children.append(add_der({"id": tit_id, "component": "TextField", "label": "Titre", "value": {"path": f"/ceremony/liturgySteps/{i}/title"}}))
         
-    if not col4_children:
-        col4_children.append(add_c({"id": "no_deroule", "component": "Text", "text": "Aucune note repérée."}))
+        add_der({"id": r_id, "component": "Row", "children": row_children})
+        der_children.append(r_id)
         
-    add_c({"id": "col4", "component": "Column", "children": col4_children})
-    root_children.append(add_c({"id": "card4", "component": "Card", "child": "col4"}))
+    add_surface("deroule", der_children, c_der)
     
-    # Section 5: Prière universelle
-    col5_children = []
-    col5_children.append(add_c({"id": "tf_pu", "component": "TextField", "label": "Intentions", "value": {"path": "/ceremony/universalPrayerIntentions/0"}}))
-    add_c({"id": "col5", "component": "Column", "children": col5_children})
-    root_children.append(add_c({"id": "card5", "component": "Card", "child": "col5"}))
-
-    # Points à vérifier (readonly)
-    col6_children = []
+    # 5. priere
+    c_pri = []
+    def add_pri(c): c_pri.append(c); return c["id"]
+    add_pri({"id": "tf_pu", "component": "TextField", "label": "Intentions", "value": {"path": "/ceremony/universalPrayerIntentions/0"}})
+    add_surface("priere", ["tf_pu"], c_pri)
+    
+    # 6. points_verif
+    c_verif = []
+    def add_verif(c): c_verif.append(c); return c["id"]
+    verif_children = []
+    
     needs_review = session_record.extraction.needsHumanReview
     missing = session_record.extraction.missingFields
     contras = session_record.extraction.contradictions
     
     if needs_review:
-        col6_children.append(add_c({"id": "txt_nr", "component": "Text", "text": f"À vérifier : {', '.join(needs_review)}"}))
+        add_verif({"id": "txt_nr_hdr", "component": "Text", "text": "À vérifier :"})
+        verif_children.append("txt_nr_hdr")
+        for i, item in enumerate(needs_review):
+            add_verif({"id": f"txt_nr_{i}", "component": "Text", "text": f"• {item}"})
+            verif_children.append(f"txt_nr_{i}")
+            
     if missing:
-        col6_children.append(add_c({"id": "txt_mi", "component": "Text", "text": f"Manquants : {', '.join(missing)}"}))
+        add_verif({"id": "txt_mi_hdr", "component": "Text", "text": "Champs manquants :"})
+        verif_children.append("txt_mi_hdr")
+        for i, item in enumerate(missing):
+            add_verif({"id": f"txt_mi_{i}", "component": "Text", "text": f"• {item}"})
+            verif_children.append(f"txt_mi_{i}")
+            
     if contras:
-        col6_children.append(add_c({"id": "txt_co", "component": "Text", "text": f"Contradictions : {len(contras)} repérées"}))
+        add_verif({"id": "txt_co_hdr", "component": "Text", "text": "Contradictions repérées :"})
+        verif_children.append("txt_co_hdr")
+        for i, item in enumerate(contras):
+             add_verif({"id": f"txt_co_{i}", "component": "Text", "text": f"• {item}"})
+             verif_children.append(f"txt_co_{i}")
+             
+    if not verif_children:
+        add_verif({"id": "txt_all_good", "component": "Text", "text": "Aucun point à vérifier."})
+        verif_children.append("txt_all_good")
         
-    if not col6_children:
-         col6_children.append(add_c({"id": "txt_all_good", "component": "Text", "text": "Aucun point à vérifier."}))
-         
-    add_c({"id": "col6", "component": "Column", "children": col6_children})
-    root_children.append(add_c({"id": "card6", "component": "Card", "child": "col6"}))
-
-    # avoidMentioning (highlighted)
-    if session_record.deceased.avoidMentioning:
-        col7_children = []
-        for i, avoid in enumerate(session_record.deceased.avoidMentioning):
-             col7_children.append(add_c({"id": f"tf_avoid_{i}", "component": "TextField", "label": "À éviter", "value": {"path": f"/deceased/avoidMentioning/{i}"}}))
-        add_c({"id": "col7", "component": "Column", "children": col7_children})
-        root_children.append(add_c({"id": "card7", "component": "Card", "child": "col7"}))
-
-
-    # Valider button
-    add_c({"id": "btn_valider_label", "component": "Text", "text": "Valider le dossier"})
-    btn_variant = "primary"
+    add_surface("points_verif", verif_children, c_verif)
     
-    # Passing disabled prop for the Button if A2UI supports it (fallback to client-side JS otherwise)
-    btn_props = {
+    # 7. questions
+    c_quest = []
+    def add_quest(c): c_quest.append(c); return c["id"]
+    quest_children = []
+    sug = session_record.extraction.suggestedQuestions
+    if sug:
+        for i, item in enumerate(sug):
+            add_quest({"id": f"txt_qu_{i}", "component": "Text", "text": f"• {item}"})
+            quest_children.append(f"txt_qu_{i}")
+    if not quest_children:
+        add_quest({"id": "txt_no_qu", "component": "Text", "text": "Aucune question suggérée."})
+        quest_children.append("txt_no_qu")
+    add_surface("questions", quest_children, c_quest)
+    
+    # 8. avoid_mentioning
+    c_avoid = []
+    def add_avoid(c): c_avoid.append(c); return c["id"]
+    avoid_children = []
+    avoid_list = session_record.deceased.avoidMentioning
+    if avoid_list:
+        for i, item in enumerate(avoid_list):
+            add_avoid({"id": f"tf_avoid_{i}", "component": "TextField", "label": "À éviter", "value": {"path": f"/deceased/avoidMentioning/{i}"}})
+            avoid_children.append(f"tf_avoid_{i}")
+    if not avoid_children:
+        add_avoid({"id": "txt_no_avoid", "component": "Text", "text": "Aucune restriction."})
+        avoid_children.append("txt_no_avoid")
+    add_surface("avoid_mentioning", avoid_children, c_avoid)
+    
+    # 9. actions
+    c_act = []
+    def add_act(c): c_act.append(c); return c["id"]
+    add_act({"id": "btn_valider_label", "component": "Text", "text": "✓ Valider le dossier"})
+    btn_variant = "primary"
+    add_act({
         "id": "btn_valider", 
         "component": "Button", 
         "child": "btn_valider_label", 
         "variant": btn_variant, 
         "action": {"event": {"name": "validate"}}
-    }
-    # For A2UI Basic Button, we might need to set disabled in the dataModel, or we just rely on the server 409
-    
-    add_c(btn_props)
-    
-    root_children.append("btn_valider")
-    
-    add_c({"id": "root", "component": "Column", "children": root_children})
-    
-    messages.append({
-        "version": "v0.9",
-        "updateComponents": {
-            "surfaceId": "main",
-            "components": components
-        }
     })
     
+    status = session_record.qualityCheck.status
+    if status == "BLOCKING":
+        add_act({"id": "err_blocking", "component": "Text", "text": "BLOQUANT: Veuillez corriger les incohérences avant de valider."})
+        add_surface("actions", ["err_blocking", "btn_valider"], c_act)
+    else:
+        add_surface("actions", ["btn_valider"], c_act)
+
     return messages
 
 def background_generation(record: Record):
@@ -274,29 +305,21 @@ async def post_action(request: Request, background_tasks: BackgroundTasks):
     dataModel = payload.get("dataModel", {})
     
     if action.get("name") == "validate":
-        # 1. Enforce BLOCKING check
         if session_record.qualityCheck.status == "BLOCKING":
             raise HTTPException(status_code=409, detail="Cannot validate: Record is BLOCKING.")
         
-        # 2. Safely rehydrate Record
         try:
-            # We reconstruct a NEW Record object from the incoming dataModel
             new_record = Record(**dataModel)
-            
-            # PRESERVE non-editable system fields from session_record
             new_record.extraction = session_record.extraction
             new_record.qualityCheck = session_record.qualityCheck
             new_record.caseId = session_record.caseId
             new_record.security.humanValidated = True
             new_record.status = CeremonyStatus.ready_for_generation
             
-            # Drop empty liturgy steps
             valid_steps = [s for s in new_record.ceremony.liturgySteps if s.label or s.reference or s.title]
             new_record.ceremony.liturgySteps = valid_steps
             
             session_record = new_record
-            
-            # 3. Spawn run_after_validation
             background_tasks.add_task(background_generation, session_record)
             
             return {"redirect": "/screen_c"}
@@ -319,16 +342,50 @@ async def get_screen_c(request: Request):
     }
     return HTMLResponse(templates.get_template("screen_c.html").render(context))
 
+from fastapi.responses import FileResponse
+from pathlib import Path
+
 @app.get("/api/download_deroule")
 async def download_deroule():
-    from fastapi.responses import FileResponse
-    import glob
-    # Look for any docx in the examples/jeanne_martin directory (or current dir)
-    files = glob.glob(f"examples/*_deroule.docx")
-    if files:
-        files.sort(key=os.path.getctime, reverse=True)
-        return FileResponse(files[0], filename="deroule.docx")
-    return {"error": "File not found"}
+    if not session_record:
+        return JSONResponse(status_code=404, content={"error": "Fichier introuvable"})
+        
+    if session_record.status != CeremonyStatus.validated:
+        return JSONResponse(status_code=202, content={"error": "Génération en cours…"})
+        
+    doc_link = session_record.communication.documentLink
+    if not doc_link:
+         return JSONResponse(status_code=404, content={"error": "Fichier introuvable"})
+    
+    try:
+        # Resolve absolute path
+        base_dir = Path(__file__).resolve().parent.parent
+        # Prevent traversal manually if needed, but doc_link comes from backend
+        file_path = (base_dir / doc_link).resolve()
+        
+        if not str(file_path).startswith(str(base_dir)):
+             return JSONResponse(status_code=403, content={"error": "Accès refusé"})
+             
+        if not file_path.exists():
+             logger.error(f"Download requested but file missing: {file_path}")
+             return JSONResponse(status_code=404, content={"error": "Fichier introuvable"})
+             
+        return FileResponse(
+            path=file_path, 
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document", 
+            filename=f"deroule_{session_record.caseId}.docx"
+        )
+    except Exception as e:
+        logger.error(f"Download error: {e}")
+        return JSONResponse(status_code=500, content={"error": "Erreur serveur"})
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Erreur serveur inattendue: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={"error": "Une erreur inattendue s'est produite. Veuillez réessayer."}
+    )
 
 if __name__ == "__main__":
     logger.info("Starting A2UI UI on http://localhost:8002")
