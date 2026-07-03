@@ -44,6 +44,7 @@ class Ceremony(BaseModel):
     meditationSong: Optional[str] = None
     universalPrayerIntentions: List[str] = []
     finalFarewellSong: Optional[str] = None
+    motDAccueil: Optional[str] = None
     practicalNotes: List[str] = []
 
 class ParticipantContact(BaseModel):

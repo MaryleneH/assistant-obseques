@@ -120,6 +120,7 @@ def check_record(record: Record) -> Record:
         prompt = (
             "Analyze the following record for missing or uncertain fields. "
             "Generate concrete French questions to ask the family to fill these gaps. "
+            "CAP the suggestedQuestions at the 5 most important, prioritizing safety/identity gaps first, then liturgical content. "
             "Also add any nuanced coherence observations. "
             f"Record data:\n{record.model_dump_json(indent=2)}"
         )
