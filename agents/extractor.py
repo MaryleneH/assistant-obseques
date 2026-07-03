@@ -6,6 +6,7 @@ import os
 import sys
 from typing import Any
 import json
+from datetime import date
 
 from google.adk import Agent
 from google import genai
@@ -23,12 +24,13 @@ Your job is to read free-form interview notes or photos and extract exactly ONE 
 
 CRITICAL BEHAVIOUR CONTRACT:
 1. NEVER INVENT DATA & FIELD SEMANTICS: If a field is unknown or not explicitly stated in the input, leave it as null/empty. Content fields (like `ceremony.firstReading` or `ceremony.universalPrayerIntentions`) hold CONTENT only. If the notes only state WHO does something (e.g. "read by Pierre"), the content field stays null/empty, and you must add the missing content to `extraction.missingFields`.
-2. LITURGY STEPS & CANONICAL LABELS: Extract `ceremony.liturgySteps` in liturgical order. Use canonical rubric labels for known steps: « Chant d'entrée », « 1ère Lecture », « Psaume », « Évangile », « Prière Universelle », « Chant d'Adieu ». Keep verbatim titles/references, but drop detail text that merely repeats the label.
-3. DATE & TIME NORMALIZATION: `ceremony.date` must be ISO YYYY-MM-DD. `ceremony.time` must be HH:MM. If the year is absent in the notes, infer the current year for an upcoming ceremony AND add a note to `extraction.needsHumanReview` stating the year was inferred.
+2. LITURGY STEPS & CANONICAL LABELS: Extract `ceremony.liturgySteps` in liturgical order. Use canonical rubric labels for known steps: « Chant d'entrée », « 1ère Lecture », « Psaume », « Évangile », « Prière Universelle », « Chant d'Adieu ». Keep verbatim titles/references. The `detail` field must preserve the ASSIGNMENT notes (who does what, e.g. "Pierre (fils)" or "Claire (petite-fille) - une intention"). Only drop detail text if it merely repeats the rubric label.
+3. DATE & TIME NORMALIZATION: `ceremony.date` must be ISO YYYY-MM-DD. `ceremony.time` must be HH:MM. If the year is absent in the notes, infer the current year (based on the "Today's Date" provided below) AND add a note to `extraction.needsHumanReview` stating the year was inferred.
 4. MISSING FIELDS QUALITY: `extraction.missingFields` must contain human-readable French descriptions of ceremony-content gaps only (e.g., "référence ou texte de la première lecture", "références (n°/page) des chants choisis", "nombre ou textes des intentions de prière"). Do NOT list system-assigned fields (caseId, timestamps, status, communication internals).
 5. CONTRADICTIONS: If notes contradict each other, do not silently overwrite. Log in `extraction.contradictions` (field, values, pages).
 6. UNCERTAINTY: For uncertain readings, list the key in `extraction.needsHumanReview` and assign a score (<1.0) in `extraction.fieldConfidences`.
 7. AVOID MENTIONING: Capture any topics the family asked to avoid verbatim in `deceased.avoidMentioning`.
+8. SOURCE TYPE: Set `extraction.sourceType` to the exact value "manual_notes" (unless it's a photo/PDF).
 """
 
 extractor_agent = Agent(
@@ -68,12 +70,15 @@ def extract_record(notes_or_photos: Any) -> Record:
         
     schema_dict = Record.model_json_schema()
     schema_dict = remove_additional_properties(schema_dict)
+    
+    # Inject today's date to give the model a clock for year inference
+    current_instruction = _INSTRUCTIONS + f"\n[SYSTEM DATA]\nToday's Date: {date.today().isoformat()}"
         
     response = client.models.generate_content(
         model=model_name,
         contents=prompt_content,
         config=types.GenerateContentConfig(
-            system_instruction=_INSTRUCTIONS,
+            system_instruction=current_instruction,
             response_mime_type="application/json",
             response_schema=schema_dict,
             temperature=0.0
