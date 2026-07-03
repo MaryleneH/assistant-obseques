@@ -12,6 +12,7 @@ from google import genai
 from google.genai import types
 
 from .models import Record, CeremonyStatus
+from .llm import generate_with_resilience
 
 model_name = os.getenv("WRITER_MODEL")
 if not model_name or "placeholder" in model_name:
@@ -76,31 +77,23 @@ def write_record(record: Record) -> Record:
     prompt = f"Record data:\n{record.model_dump_json(indent=2)}"
     
     def try_generate(extra_instruction=""):
-        import time
-        max_retries = 3
-        for attempt in range(max_retries):
-            try:
-                response = client.models.generate_content(
-                    model=model_name,
-                    contents=prompt,
-                    config=types.GenerateContentConfig(
-                        system_instruction=system_instruction + extra_instruction,
-                        response_mime_type="application/json",
-                        response_schema=schema_dict,
-                        temperature=0.0
-                    )
-                )
-                if isinstance(response.parsed, WriterLLMResponse):
-                    return response.parsed
-                elif isinstance(response.parsed, dict):
-                    return WriterLLMResponse(**response.parsed)
-                else:
-                    return WriterLLMResponse(**json.loads(response.text))
-            except Exception as e:
-                if attempt == max_retries - 1:
-                    raise
-                print(f"Generation attempt {attempt + 1} failed: {e}. Retrying...", file=sys.stderr)
-                time.sleep(2)
+        response = generate_with_resilience(
+            client=client,
+            model=model_name,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                system_instruction=system_instruction + extra_instruction,
+                response_mime_type="application/json",
+                response_schema=schema_dict,
+                temperature=0.0
+            )
+        )
+        if isinstance(response.parsed, WriterLLMResponse):
+            return response.parsed
+        elif isinstance(response.parsed, dict):
+            return WriterLLMResponse(**response.parsed)
+        else:
+            return WriterLLMResponse(**json.loads(response.text))
 
     res = try_generate()
     
