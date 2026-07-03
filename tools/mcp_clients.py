@@ -106,10 +106,24 @@ def append_ceremony_row(record: Record) -> Any:
     
     sheet = service.spreadsheets()
     
+    # Resolve the first tab's actual title at runtime (e.g. "Feuille 1" for French locale)
+    sheet_tab = os.getenv("SHEET_TAB")
+    if not sheet_tab:
+        try:
+            sheet_meta = sheet.get(spreadsheetId=sheet_id, fields="sheets.properties.title").execute()
+            sheet_tab = sheet_meta['sheets'][0]['properties']['title']
+            logging.info(f"Sheets API: Resolved first tab name to '{sheet_tab}'")
+        except Exception as e:
+            logging.warning(f"Failed to resolve sheet tab name: {e}. Defaulting to 'Sheet1'")
+            sheet_tab = "Sheet1"
+            
+    range_a1 = f"'{sheet_tab}'!A1"
+    range_a1_a2 = f"'{sheet_tab}'!A1:A2"
+    
     # Try to get existing rows to check if we need to write headers
-    logging.info(f"Sheets API: Checking if sheet {sheet_id} is empty...")
+    logging.info(f"Sheets API: Checking if sheet {sheet_id} is empty on tab '{sheet_tab}'...")
     try:
-        result = sheet.values().get(spreadsheetId=sheet_id, range="Sheet1!A1:A2").execute()
+        result = sheet.values().get(spreadsheetId=sheet_id, range=range_a1_a2).execute()
         values = result.get('values', [])
     except Exception as e:
         logging.warning(f"Failed to read sheet: {e}. Assuming empty.")
@@ -119,13 +133,13 @@ def append_ceremony_row(record: Record) -> Any:
         logging.info("Sheets API: Sheet appears empty, bootstrapping headers...")
         body = {'values': [headers]}
         sheet.values().append(
-            spreadsheetId=sheet_id, range="Sheet1!A1",
+            spreadsheetId=sheet_id, range=range_a1,
             valueInputOption="USER_ENTERED", body=body).execute()
             
     logging.info("Sheets API: Appending ceremony row...")
     body = {'values': [row_data]}
     append_result = sheet.values().append(
-        spreadsheetId=sheet_id, range="Sheet1!A1",
+        spreadsheetId=sheet_id, range=range_a1,
         valueInputOption="USER_ENTERED", body=body).execute()
         
     updates = append_result.get('updates', {})
