@@ -18,6 +18,16 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ui.app")
 
 app = FastAPI()
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled exception: {exc}")
+    # Return a generic French error to prevent traceback leaks
+    return HTMLResponse(
+        status_code=500,
+        content="<html><body><h1>Une erreur interne s'est produite.</h1><p>Veuillez réessayer plus tard.</p></body></html>"
+    )
+
 app.mount("/static", StaticFiles(directory="ui/static"), name="static")
 templates = Jinja2Templates(directory="ui/templates")
 
@@ -119,7 +129,8 @@ async def get_messages():
             "version": "v0.9",
             "createSurface": {
                 "surfaceId": surface_id,
-                "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json"
+                "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json",
+                "sendDataModel": True
             }
         })
         messages.append({
@@ -244,7 +255,7 @@ async def get_messages():
     c_quest = []
     def add_quest(c): c_quest.append(c); return c["id"]
     quest_children = []
-    sug = session_record.extraction.suggestedQuestions
+    sug = session_record.qualityCheck.suggestedQuestions
     if sug:
         for i, item in enumerate(sug):
             add_quest({"id": f"txt_qu_{i}", "component": "Text", "text": f"• {item}"})
@@ -273,11 +284,13 @@ async def get_messages():
     def add_act(c): c_act.append(c); return c["id"]
     add_act({"id": "btn_valider_label", "component": "Text", "text": "✓ Valider le dossier"})
     btn_variant = "primary"
+    status = session_record.qualityCheck.status
     add_act({
         "id": "btn_valider", 
         "component": "Button", 
         "child": "btn_valider_label", 
         "variant": btn_variant, 
+        "disabled": (status == "BLOCKING"),
         "action": {"event": {"name": "validate"}}
     })
     
@@ -297,19 +310,52 @@ def background_generation(record: Record):
     except Exception as e:
         logger.error(f"Generation failed: {e}")
 
+def extract_diffs(original, updated):
+    diff = {}
+    for k, v in updated.items():
+        if k not in original:
+            diff[k] = v
+        elif isinstance(v, dict) and isinstance(original[k], dict):
+            sub_diff = extract_diffs(original[k], v)
+            if sub_diff:
+                diff[k] = sub_diff
+        elif isinstance(v, list) and isinstance(original[k], list):
+            # For lists, if they are identical, skip. If they differ, take the new list entirely.
+            if v != original[k]:
+                diff[k] = v
+        elif v != original[k]:
+            diff[k] = v
+    return diff
+
+def apply_diffs(target, diff):
+    for k, v in diff.items():
+        if isinstance(v, dict) and k in target and isinstance(target[k], dict):
+            apply_diffs(target[k], v)
+        else:
+            target[k] = v
+
 @app.post("/api/action")
 async def post_action(request: Request, background_tasks: BackgroundTasks):
     global session_record
     payload = await request.json()
     action = payload.get("action", {})
-    dataModel = payload.get("dataModel", {})
     
     if action.get("name") == "validate":
         if session_record.qualityCheck.status == "BLOCKING":
             raise HTTPException(status_code=409, detail="Cannot validate: Record is BLOCKING.")
         
         try:
-            new_record = Record(**dataModel)
+            data_model_wrapper = payload.get("dataModel", {})
+            surfaces = data_model_wrapper.get("surfaces", {}) if data_model_wrapper.get("version") == "v0.9" else {}
+            
+            original_dict = session_record.model_dump()
+            final_dict = original_dict.copy()
+            
+            for surface_id, surface_data in surfaces.items():
+                diffs = extract_diffs(original_dict, surface_data)
+                apply_diffs(final_dict, diffs)
+            
+            new_record = Record(**final_dict)
             new_record.extraction = session_record.extraction
             new_record.qualityCheck = session_record.qualityCheck
             new_record.caseId = session_record.caseId

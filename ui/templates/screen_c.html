@@ -49,12 +49,12 @@
 
         <div class="card">
             {% if status not in ['document_created', 'email_draft_created'] %}
-                <h2>Génération en cours…</h2>
+                <h3 class="label-micro">Génération en cours…</h3>
                 <p>Veuillez patienter pendant que vos documents sont créés (Google Doc, Brouillon Gmail, Ligne de registre...).</p>
                 <div class="spinner"></div>
             {% else %}
                 <div class="success-icon">✓</div>
-                <h2>Dossier généré avec succès</h2>
+                <h3 class="label-micro">Dossier généré avec succès</h3>
                 <p>Tous les éléments ont été préparés pour {{ deceased_name }}.</p>
                 
                 <a href="/api/download_deroule" class="btn-primary" style="margin-top: 16px; display: inline-block;">⬇️ Télécharger le Déroulé (Word)</a>
