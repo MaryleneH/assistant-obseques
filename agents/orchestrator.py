@@ -1,40 +1,34 @@
 """
 Orchestrator Agent for Assistant Obsèques.
-This agent is the root agent exposed to ADK. It orchestrates the Extractor, Checker,
-and Writer agents, and invokes external MCP tools and runtime skills.
+Manages the end-to-end multi-agent pipeline and state transitions.
 """
-from typing import Any
-import logging
-import subprocess
+from typing import List
+from .models import Record, CeremonyStatus
+from .extractor import extract_record
+from .checker import check_record
+from .writer import write_record
+from tools.deroule import build_deroule
 
-from google.adk import Agent
-from .telemetry import init_telemetry
-
-# Initialize telemetry at startup
-init_telemetry()
-
-def start_pipeline(notes: str) -> dict[str, Any]:
+def run_until_review(pages: List[str]) -> Record:
     """
-    Entry point for the orchestration pipeline.
+    Phase 1: Extraction and Safety/Quality Checking.
+    The pipeline STOPS here by design, waiting for human validation.
     """
-    logging.info("Starting Assistant Obsèques pipeline...")
-    return {"status": "mock_response"}
+    record = extract_record(pages)
+    record = check_record(record)
+    assert record.status == CeremonyStatus.needs_review, "Record did not transition to needs_review"
+    return record
 
-def build_deroule(input_json_path: str, output_docx_path: str) -> None:
+def run_after_validation(record: Record) -> Record:
     """
-    Invokes the runtime skill to build the Word document.
+    Phase 2: Generation and Output creation.
+    Requires a human-validated record to proceed.
     """
-    cmd = [
-        "node", 
-        "skills/deroule-obseques/scripts/build_deroule.js", 
-        input_json_path, 
-        output_docx_path
-    ]
-    subprocess.run(cmd, check=True)
-
-# Define root_agent as an ADK Agent instance so adk web discovery works
-root_agent = Agent(
-    name="orchestrator",
-    instruction="I am the orchestrator for the Assistant Obsèques pipeline. I coordinate notes extraction, checking, human validation, and final document generation.",
-    tools=[start_pipeline]
-)
+    if not record.security.humanValidated:
+        raise ValueError("Record must be explicitly human-validated before proceeding.")
+    if record.status != CeremonyStatus.ready_for_generation:
+        raise ValueError("Record status must be 'ready_for_generation'.")
+        
+    record = write_record(record)
+    record = build_deroule(record)
+    return record
