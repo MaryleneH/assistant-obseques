@@ -19,7 +19,8 @@ obs = [
     "langfuse"
 ]
 dev = [
-    "pytest"
+    "pytest",
+    "python-dotenv"
 ]
 
 [tool.hatch.build.targets.wheel]

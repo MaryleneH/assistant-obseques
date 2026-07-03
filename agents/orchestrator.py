@@ -7,18 +7,17 @@ from typing import Any
 import logging
 import subprocess
 
-# Note: google.adk will be used here. Expose as root_agent.
-# from google.adk import Agent # Example ADK import
-
+from google.adk import Agent
 from .telemetry import init_telemetry
+
+# Initialize telemetry at startup
+init_telemetry()
 
 def start_pipeline(notes: str) -> dict[str, Any]:
     """
     Entry point for the orchestration pipeline.
     """
-    init_telemetry()
     logging.info("Starting Assistant Obsèques pipeline...")
-    # TODO: Implement orchestration logic
     return {"status": "mock_response"}
 
 def build_deroule(input_json_path: str, output_docx_path: str) -> None:
@@ -33,5 +32,9 @@ def build_deroule(input_json_path: str, output_docx_path: str) -> None:
     ]
     subprocess.run(cmd, check=True)
 
-# Define root_agent here for ADK discovery
-root_agent = start_pipeline # Placeholder
+# Define root_agent as an ADK Agent instance so adk web discovery works
+root_agent = Agent(
+    name="orchestrator",
+    instruction="I am the orchestrator for the Assistant Obsèques pipeline. I coordinate notes extraction, checking, human validation, and final document generation.",
+    tools=[start_pipeline]
+)
