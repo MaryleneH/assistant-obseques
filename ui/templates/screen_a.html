@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assistant Obsèques - Nouvelle célébration</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        #loading {
+            display: none;
+            text-align: center;
+            font-weight: bold;
+            color: var(--accent-sage);
+            margin-top: 16px;
+        }
+        .secondary {
+            background-color: #EDF2F7;
+            color: var(--text-slate);
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-bottom: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="brand-header">
+            <h1 class="brand-title">Assistant Obsèques</h1>
+            <p class="brand-subtitle">Paroisse & Espérance</p>
+        </div>
+
+        <div class="card">
+            <h2>Source du document</h2>
+            <p>Prenez en photo la feuille de préparation remplie à la main, ou déposez le fichier ici. Vous pouvez aussi coller vos notes texte.</p>
+            
+            <button class="secondary" onclick="loadExample()" type="button">Ou essayez un exemple annoté (Texte)</button>
+            
+            <form action="/extract" method="POST" id="extractForm" enctype="multipart/form-data">
+                
+                <div class="drop-zone" id="dropZone">
+                    <input type="file" name="photos" id="photosInput" accept="image/*" multiple capture="environment">
+                    <div class="drop-zone-text">Prendre une photo / Importer</div>
+                    <div class="drop-zone-sub">Appuyez ici ou glissez vos fichiers JPEG/PNG. (Plusieurs pages possibles)</div>
+                    <div class="thumbnail-preview" id="thumbnailPreview"></div>
+                </div>
+
+                <label class="label-micro" for="notes">Ou saisie texte manuelle</label>
+                <textarea name="notes" id="notes" placeholder="Ex: Jeanne Martin, née le 12/04/1940..."></textarea>
+                
+                <button type="submit" class="btn-primary" id="submitBtn" disabled>✨ Extraire les informations</button>
+            </form>
+
+            <div id="loading">Extraction en cours... (environ 15 secondes)</div>
+
+            <div class="help-box">
+                <h3>Aide & consignes</h3>
+                <p>L'assistant extrait uniquement ce qu'il peut lire avec certitude. Tout élément vague ou raturé vous sera signalé sous <em>Incertitudes / Points à vérifier</em>.</p>
+                <p>Il synthétise vos notes sans les réinventer.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function loadExample() {
+            try {
+                const res = await fetch('/api/example');
+                const data = await res.json();
+                document.getElementById('notes').value = data.notes;
+                checkEnableSubmit();
+            } catch (e) {
+                alert("Erreur lors du chargement de l'exemple.");
+            }
+        }
+
+        const notesInput = document.getElementById('notes');
+        const photosInput = document.getElementById('photosInput');
+        const submitBtn = document.getElementById('submitBtn');
+        const thumbPreview = document.getElementById('thumbnailPreview');
+
+        function checkEnableSubmit() {
+            if (notesInput.value.trim() !== '' || photosInput.files.length > 0) {
+                submitBtn.disabled = false;
+            } else {
+                submitBtn.disabled = true;
+            }
+        }
+
+        notesInput.addEventListener('input', checkEnableSubmit);
+
+        photosInput.addEventListener('change', function(e) {
+            thumbPreview.innerHTML = '';
+            const files = e.target.files;
+            
+            if (files.length > 0) {
+                const subText = document.querySelector('.drop-zone-sub');
+                subText.textContent = "Cliquer pour remplacer";
+            } else {
+                document.querySelector('.drop-zone-sub').textContent = "Appuyez ici ou glissez vos fichiers JPEG/PNG. (Plusieurs pages possibles)";
+            }
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                if (!file.type.startsWith('image/')) continue;
+                
+                const img = document.createElement('img');
+                img.src = URL.createObjectURL(file);
+                img.onload = function() {
+                    URL.revokeObjectURL(this.src);
+                }
+                thumbPreview.appendChild(img);
+            }
+            checkEnableSubmit();
+        });
+        
+        document.getElementById('extractForm').addEventListener('submit', function() {
+            document.getElementById('submitBtn').disabled = true;
+            document.getElementById('submitBtn').style.opacity = '0.5';
+            document.getElementById('loading').style.display = 'block';
+        });
+    </script>
+</body>
+</html>

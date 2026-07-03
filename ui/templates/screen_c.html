@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assistant Obsèques - Résultat</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <!-- Meta refresh based on status -->
+    {% if status not in ['document_created', 'email_draft_created'] %}
+    <meta http-equiv="refresh" content="5">
+    {% endif %}
+    <style>
+        .container {
+            text-align: center;
+        }
+        .spinner {
+            border: 4px solid rgba(0,0,0,0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: var(--accent-sage);
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .success-icon {
+            font-size: 48px;
+            color: var(--accent-sage);
+        }
+        .info {
+            text-align: left;
+            background-color: #F7FAFC;
+            padding: 16px;
+            border-radius: 8px;
+            margin-top: 24px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="brand-header">
+            <h1 class="brand-title">Assistant Obsèques</h1>
+            <p class="brand-subtitle">Paroisse & Espérance</p>
+        </div>
+
+        <div class="card">
+            {% if status not in ['document_created', 'email_draft_created'] %}
+                <h2>Génération en cours…</h2>
+                <p>Veuillez patienter pendant que vos documents sont créés (Google Doc, Brouillon Gmail, Ligne de registre...).</p>
+                <div class="spinner"></div>
+            {% else %}
+                <div class="success-icon">✓</div>
+                <h2>Dossier généré avec succès</h2>
+                <p>Tous les éléments ont été préparés pour {{ deceased_name }}.</p>
+                
+                <a href="/api/download_deroule" class="btn-primary" style="margin-top: 16px; display: inline-block;">⬇️ Télécharger le Déroulé (Word)</a>
+                
+                <div class="info">
+                    <strong>Récapitulatif :</strong>
+                    <ul>
+                        <li>Le brouillon d'e-mail a été sauvegardé dans votre boîte Gmail.</li>
+                        <li>Le Google Doc a été créé dans votre Drive.</li>
+                        <li>La ligne de registre a été ajoutée à votre Google Sheet.</li>
+                    </ul>
+                </div>
+                
+                <a href="/" style="display: block; margin-top: 20px; color: var(--text-slate); text-decoration: underline;">← Traiter une nouvelle célébration</a>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

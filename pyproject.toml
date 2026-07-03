@@ -9,7 +9,12 @@ description = "Assistant Obsèques"
 requires-python = "==3.13.*"
 dependencies = [
     "google-adk",
-    "pydantic"
+    "pydantic",
+    "fastapi",
+    "uvicorn",
+    "jinja2",
+    "python-multipart",
+    "Pillow"
 ]
 
 [project.optional-dependencies]

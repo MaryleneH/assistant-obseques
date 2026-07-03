@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Assistant Obsèques - Validation</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+      body {
+        margin: 0;
+        padding: 20px;
+      }
+      .a2ui-container {
+        /* Matches mobile-first max-width container */
+        max-width: 600px;
+        margin: 0 auto;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="brand-header">
+        <h1 class="brand-title">Assistant Obsèques</h1>
+        <p class="brand-subtitle">Paroisse & Espérance</p>
+    </div>
+    
+    <div class="a2ui-container">
+        <!-- The Lit element we created in client.ts -->
+        <my-app></my-app>
+    </div>
+    
+    <script type="module" src="/static/bundle.js"></script>
+  </body>
+</html>
