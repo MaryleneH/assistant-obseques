@@ -29,7 +29,35 @@ def main():
     
     print("\n3. Running Phase 2 (Writer -> Word Déroulé)...")
     try:
-        record = run_after_validation(record)
+        # We need to run Writer manually to intercept the record before MCP tools are called.
+        from agents.writer import write_record
+        from tools.deroule import build_deroule
+        from tools.mcp_clients import create_gmail_draft, append_ceremony_row
+        
+        record = write_record(record)
+        record = build_deroule(record)
+        
+        # New assertions before the draft call
+        body = record.communication.emailBody or ""
+        subject = record.communication.emailSubject or ""
+        
+        assert "\\n" not in body, "Literal '\\n' (2-char) found in email body"
+        assert "\n" in body, "Real newline NOT found in email body"
+        
+        assert "\\n" not in subject, "Literal '\\n' (2-char) found in email subject"
+        
+        # Run external MCP tools
+        draft_result = create_gmail_draft(record)
+        if draft_result:
+            print(f"-> GMAIL DRAFT CREATED: {draft_result}")
+            
+        record.communication.emailDraftCreated = True
+        record.status = CeremonyStatus.email_draft_created
+        
+        append_result = append_ceremony_row(record)
+        if append_result:
+            print(f"-> SHEETS ROW APPENDED: {append_result}")
+            
     except Exception as e:
         import traceback
         traceback.print_exc()

@@ -54,24 +54,18 @@ def write_record(record: Record) -> Record:
         
     client = genai.Client()
     
-    def remove_additional_properties(d):
-        if isinstance(d, dict):
-            d.pop("additionalProperties", None)
-            for k, v in d.items():
-                remove_additional_properties(v)
-        elif isinstance(d, list):
-            for item in d:
-                remove_additional_properties(item)
-        return d
-        
-    schema_dict = remove_additional_properties(WriterLLMResponse.model_json_schema())
+    # We use the Pydantic model directly for response_schema
     
     system_instruction = (
         "You are the Writer agent. Your task is to generate sober, warm, and liturgically appropriate content in French.\n"
         "1. Write a short 'mot d'accueil' based ONLY on deceased.personalityTraits and lifeElements. Do not invent biography.\n"
         "2. Complete the universalPrayerIntentions to 3-4 total intentions, keeping any existing ones and their reader assignments.\n"
-        "3. Write a sober email (subject and body) to the priest and team presenting the ceremony. For any missing liturgical field (e.g. gospel, psalm), explicitly state 'à compléter'.\n"
-        "CRITICAL: Do NOT mention any term derived from deceased.avoidMentioning in any of the generated text."
+        "3. Write a sober email (subject and body) to the priest and team presenting the ceremony. "
+        "Include a one-line mention that the mot d'accueil is drafted from the family's words, and clarify the universal prayer "
+        "(e.g., 'une intention lue par Claire (petite-fille) — 3 à 4 intentions proposées au total'). "
+        "For any missing liturgical field (e.g. gospel, psalm), explicitly state 'à compléter'.\n"
+        "CRITICAL: Do NOT mention any term derived from deceased.avoidMentioning in any of the generated text.\n"
+        "CRITICAL: Do NOT double-escape newlines in the email body or subject. Use actual newline characters (\\n), not literal backslash-n sequences."
     )
     
     prompt = f"Record data:\n{record.model_dump_json(indent=2)}"
@@ -84,7 +78,7 @@ def write_record(record: Record) -> Record:
             config=types.GenerateContentConfig(
                 system_instruction=system_instruction + extra_instruction,
                 response_mime_type="application/json",
-                response_schema=schema_dict,
+                response_schema=WriterLLMResponse,
                 temperature=0.0
             )
         )
