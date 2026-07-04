@@ -2,28 +2,23 @@
   "name": "assistant-obseques",
   "version": "1.0.0",
   "private": true,
-  "description": "🌍 **English** · [Français](README.fr.md)",
-  "main": "index.js",
-  "directories": {
-    "doc": "docs",
-    "example": "examples"
-  },
+  "description": "Human-in-the-loop AI agent for Catholic funeral ceremony preparation",
+  "license": "MIT",
+  "type": "commonjs",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build:ui": "esbuild ui/client.ts --bundle --outfile=ui/static/bundle.js"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/MaryleneH/assistant-obseques.git"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
   "bugs": {
     "url": "https://github.com/MaryleneH/assistant-obseques/issues"
   },
   "homepage": "https://github.com/MaryleneH/assistant-obseques#readme",
   "dependencies": {
+    "@a2ui/lit": "^0.10.1",
+    "@a2ui/web_core": "^0.10.3",
     "docx": "^9.7.1"
   }
 }
