@@ -1,0 +1,15 @@
+# Deterministic secret scanning on every commit — the "belt".
+# (The agent-side .agents/skills/secret-scan skill is the "suspenders".)
+#
+# One-time setup:
+#   1. pip install pre-commit
+#   2. pre-commit install
+#
+# From then on, every `git commit` is scanned automatically; a detected
+# secret aborts the commit before it ever reaches the history.
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.24.3
+    hooks:
+      - id: gitleaks
+        name: gitleaks (staged secret scan)
