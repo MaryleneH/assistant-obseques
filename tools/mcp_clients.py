@@ -139,10 +139,13 @@ def create_gmail_draft(record: Record) -> Any:
 
 def append_ceremony_row(record: Record) -> Any:
     """
-    Fallback: mcp-z/mcp-sheets fails on Windows path parsing (ENOENT C:\\C:\\...).
-    We append the row via the Google Sheets API directly using the service account.
+    Appends a ceremony row to the sacristan's Google Sheet.
+
+    Credentials: uses the service-account key file locally; in Cloud Run
+    falls back to google.auth.default() (ambient ADC — the service IS
+    the robot).  Sheets stays on the service account identity in both
+    cases; only the credential-loading path differs.
     """
-    from google.oauth2 import service_account
     from googleapiclient.discovery import build
     
     sheet_id = os.getenv("SHEET_ID")
@@ -150,13 +153,20 @@ def append_ceremony_row(record: Record) -> Any:
         raise ValueError("SHEET_ID env var must be set for Sheets API.")
         
     key_file = os.getenv("GOOGLE_SERVICE_ACCOUNT_KEY_FILE")
-    if not key_file:
-        raise ValueError("GOOGLE_SERVICE_ACCOUNT_KEY_FILE env var must be set for Sheets API.")
-        
-    creds = service_account.Credentials.from_service_account_file(
-        key_file,
-        scopes=['https://www.googleapis.com/auth/spreadsheets']
-    )
+    if key_file and os.path.isfile(key_file):
+        # Local mode: explicit service-account key file
+        from google.oauth2 import service_account
+        creds = service_account.Credentials.from_service_account_file(
+            key_file,
+            scopes=['https://www.googleapis.com/auth/spreadsheets']
+        )
+    else:
+        # Cloud mode: ambient ADC — the service runs AS the robot
+        import google.auth
+        creds, _ = google.auth.default(
+            scopes=['https://www.googleapis.com/auth/spreadsheets']
+        )
+        logging.info("Sheets: Using ambient ADC (no key file).")
     service = build('sheets', 'v4', credentials=creds)
 
     row_data = [

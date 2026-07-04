@@ -1,0 +1,34 @@
+# ── Secrets / credentials ──
+.env
+*.local.*
+service-account.json
+credentials.local.json
+token.local.json
+
+# ── Build artifacts / runtime output ──
+output/
+scratch/
+
+# ── Test data (never ship) ──
+test_photos/
+eval/real_cases/
+
+# ── VCS / IDE ──
+.git
+.gitignore
+.github
+
+# ── Node modules (rebuilt in image via npm ci) ──
+node_modules/
+
+# ── Dev / docs (not needed at runtime) ──
+docs/
+specs/
+.agents/
+.adk/
+*.md
+LICENSE
+.pre-commit-config.yaml
+tsconfig.json
+__pycache__/
+*.pyc

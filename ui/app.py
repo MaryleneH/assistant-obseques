@@ -486,5 +486,6 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 if __name__ == "__main__":
-    logger.info("Starting A2UI UI on http://localhost:8002")
-    uvicorn.run(app, host="0.0.0.0", port=8002)
+    port = int(os.environ.get("PORT", 8002))
+    logger.info("Starting A2UI UI on http://localhost:%d", port)
+    uvicorn.run(app, host="0.0.0.0", port=port)

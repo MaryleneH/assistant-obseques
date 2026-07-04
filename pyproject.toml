@@ -35,4 +35,4 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["agents", "tools"]
+packages = ["agents", "tools", "utils"]

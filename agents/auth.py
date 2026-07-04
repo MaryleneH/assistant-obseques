@@ -22,17 +22,34 @@ TOKEN_FILE = 'token.local.json'
 def get_google_credentials() -> Credentials:
     """
     Obtains valid Google OAuth2 credentials.
-    Reads GMAIL_OAUTH_CLIENT_ID and GMAIL_OAUTH_CLIENT_SECRET from environment.
-    Caches the token to token.local.json for reuse.
+
+    Two modes:
+      - Local: reads/refreshes token.local.json (interactive consent
+        via `python agents/auth.py` if missing).
+      - Cloud (Cloud Run): reads GMAIL_TOKEN_JSON env var (the full
+        JSON string, injected via Secret Manager).  Refreshes the token
+        on the fly if expired — no interactive flow possible.
+
+    The same SCOPES list covers Gmail + Drive.
     """
     creds = None
-    
-    # Load cached token if it exists
-    if os.path.exists(TOKEN_FILE):
+
+    # ── Cloud mode: GMAIL_TOKEN_JSON env var ─────────────────────
+    token_json_env = os.getenv("GMAIL_TOKEN_JSON")
+    if token_json_env:
+        try:
+            import json as _json
+            token_data = _json.loads(token_json_env)
+            creds = Credentials.from_authorized_user_info(token_data, SCOPES)
+        except Exception as e:
+            logging.warning("Failed to load GMAIL_TOKEN_JSON: %s", e)
+
+    # ── Local mode: token.local.json file ────────────────────────
+    if not creds and os.path.exists(TOKEN_FILE):
         try:
             creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
         except Exception as e:
-            logging.warning(f"Failed to load cached token: {e}")
+            logging.warning("Failed to load cached token: %s", e)
 
     # If there are no (valid) credentials available, let the user log in.
     if not creds or not creds.valid:
@@ -40,11 +57,14 @@ def get_google_credentials() -> Credentials:
             try:
                 creds.refresh(Request())
             except Exception as e:
-                logging.warning(f"Failed to refresh token: {e}")
+                logging.warning("Failed to refresh token: %s", e)
                 creds = None
 
         if not creds:
-            raise ValueError(f"No valid OAuth token found. Please run 'python agents/auth.py' first to authorize.")
+            raise ValueError(
+                "No valid OAuth token found. Locally: run 'python agents/auth.py'. "
+                "In Cloud Run: set GMAIL_TOKEN_JSON env var via Secret Manager."
+            )
 
     return creds
 

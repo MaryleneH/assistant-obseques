@@ -206,6 +206,64 @@ def main():
     # This validates the email and docx have independent placeholder rules
     print("   (docx placeholder rules remain independent — verified above)")
 
+    # ── Phase 8: Verify Gmail draft has .docx attachment ──
+    print("\n8. Verifying Gmail draft attachment...")
+    draft_attachment = getattr(record, '_draft_attachment', False)
+    assert draft_attachment, "FAIL: _draft_attachment flag is False"
+    print("   ✓ _draft_attachment flag is True")
+
+    # Fetch the actual draft from Gmail to verify the attachment
+    from agents.auth import get_google_credentials
+    from googleapiclient.discovery import build as gmail_build
+    gmail_creds = get_google_credentials()
+    gmail_service = gmail_build('gmail', 'v1', credentials=gmail_creds)
+
+    # Get the draft ID from the session record's background logs
+    # The draft was created during background_generation; we grep stdout
+    import io
+    # The draft ID was printed by the orchestrator; extract from record
+    # We'll list recent drafts and pick the latest one
+    drafts_list = gmail_service.users().drafts().list(userId="me", maxResults=1).execute()
+    latest_draft = drafts_list.get("drafts", [{}])[0]
+    draft_id = latest_draft.get("id")
+    assert draft_id, "FAIL: No drafts found in Gmail"
+    print(f"   Draft ID: {draft_id}")
+
+    # Fetch with format=full to see the MIME parts
+    full_draft = gmail_service.users().drafts().get(
+        userId="me", id=draft_id, format="full"
+    ).execute()
+    msg = full_draft.get("message", {})
+
+    # Assert it's still a DRAFT (never sent)
+    labels = msg.get("labelIds", [])
+    assert "DRAFT" in labels, f"FAIL: Draft missing DRAFT label: {labels}"
+    assert "SENT" not in labels, f"FAIL: Draft has SENT label — it was sent!"
+    print("   ✓ Draft has DRAFT label, no SENT label (never sent)")
+
+    # Find the .docx attachment in the MIME parts
+    def find_attachments(payload, found=None):
+        if found is None:
+            found = []
+        filename = payload.get("filename", "")
+        if filename:
+            found.append({
+                "filename": filename,
+                "mimeType": payload.get("mimeType", ""),
+                "size": payload.get("body", {}).get("size", 0),
+            })
+        for part in payload.get("parts", []):
+            find_attachments(part, found)
+        return found
+
+    attachments = find_attachments(msg.get("payload", {}))
+    docx_attachments = [a for a in attachments if a["filename"].endswith(".docx")]
+    assert len(docx_attachments) == 1, \
+        f"FAIL: Expected exactly 1 .docx attachment, found {len(docx_attachments)}: {attachments}"
+    att = docx_attachments[0]
+    assert att["size"] > 0, f"FAIL: .docx attachment size is 0"
+    print(f"   ✓ Attachment: {att['filename']} ({att['size']} bytes, {att['mimeType']})")
+
     print("\n=== EDIT-SURVIVAL PROOF TEST PASSED ===")
 
 
