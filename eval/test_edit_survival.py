@@ -24,6 +24,8 @@ load_dotenv()
 # The test needs a working model. EXTRACTOR_MODEL in .env may be stale;
 # use the known-good WRITER_MODEL for both roles in this test.
 os.environ["EXTRACTOR_MODEL"] = os.getenv("WRITER_MODEL", "gemini-2.5-flash")
+# Disable the auth gate for the pipeline test (no browser-based login)
+os.environ["AUTH_MODE"] = "off"
 
 sys.stdout.reconfigure(encoding='utf-8')
 

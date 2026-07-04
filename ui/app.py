@@ -8,6 +8,7 @@ from fastapi import FastAPI, Request, Form, BackgroundTasks, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.middleware.sessions import SessionMiddleware
 import uvicorn
 import logging
 import asyncio
@@ -22,7 +23,64 @@ from agents.liturgy import (
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ui.app")
 
+# ── Auth configuration ───────────────────────────────────────
+# AUTH_MODE: "on" = require Google Sign-In (cloud default);
+#            "off" = skip auth entirely (local dev / test suites).
+AUTH_MODE = os.getenv("AUTH_MODE", "on").strip().lower()
+GOOGLE_WEB_CLIENT_ID = os.getenv("GOOGLE_WEB_CLIENT_ID", "")
+AUTH_ALLOWED_EMAILS = {
+    e.strip().lower()
+    for e in os.getenv("AUTH_ALLOWED_EMAILS", "").split(",")
+    if e.strip()
+}
+# SESSION_SECRET must be ≥ 32 random bytes in production.
+# Fallback is for local dev only (AUTH_MODE=off).
+SESSION_SECRET = os.getenv("SESSION_SECRET", "local-dev-insecure-fallback-key-change-me")
+
+# Routes exempt from the auth gate
+_AUTH_EXEMPT = {"/login", "/auth/google", "/auth/logout"}
+_AUTH_EXEMPT_PREFIXES = ("/static/",)
+
 app = FastAPI()
+
+# ── Middleware stack ──────────────────────────────────────────
+# Starlette add_middleware order: LAST added wraps outermost.
+# We want: Session (outer) → AuthGate (inner) → routes.
+# So we add AuthGate FIRST, then Session wraps it.
+from starlette.middleware.base import BaseHTTPMiddleware
+
+class AuthGateMiddleware(BaseHTTPMiddleware):
+    """Redirect unauthenticated users to /login.
+
+    Skipped entirely when AUTH_MODE=off (local dev / tests).
+    Requires SessionMiddleware to be installed (wrapping this).
+    """
+    async def dispatch(self, request: Request, call_next):
+        if AUTH_MODE != "on":
+            return await call_next(request)
+
+        path = request.url.path
+        # Exempt routes: login page, auth callback, static assets
+        if path in _AUTH_EXEMPT or any(path.startswith(p) for p in _AUTH_EXEMPT_PREFIXES):
+            return await call_next(request)
+
+        # Check session (populated by SessionMiddleware which wraps us)
+        user_email = request.session.get("user_email")
+        if not user_email:
+            return RedirectResponse(url="/login", status_code=302)
+
+        return await call_next(request)
+
+# Order matters: AuthGate added first → Session added second (wraps AuthGate)
+app.add_middleware(AuthGateMiddleware)
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=SESSION_SECRET,
+    session_cookie="ao_session",
+    max_age=12 * 3600,       # 12 hours
+    same_site="lax",
+    https_only=os.getenv("AUTH_HTTPS_ONLY", "false").lower() == "true",
+)
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
@@ -32,6 +90,82 @@ async def global_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content="<html><body><h1>Une erreur interne s'est produite.</h1><p>Veuillez réessayer plus tard.</p></body></html>"
     )
+
+
+# ── Auth routes ──────────────────────────────────────────────
+@app.get("/login", response_class=HTMLResponse)
+async def get_login(request: Request, error: str = ""):
+    """Login page with Google Identity Services button."""
+    context = {
+        "request": request,
+        "client_id": GOOGLE_WEB_CLIENT_ID,
+        "error": error,
+    }
+    return HTMLResponse(templates.get_template("login.html").render(context))
+
+
+@app.post("/auth/google")
+async def auth_google(request: Request, credential: str = Form(...)):
+    """Verify the Google ID token server-side and create a session.
+
+    Authorizes ONLY if the email (case-insensitive) is in
+    AUTH_ALLOWED_EMAILS.  Never logs tokens.
+    """
+    from google.oauth2 import id_token
+    from google.auth.transport import requests as google_requests
+
+    try:
+        # Verify audience server-side — rejects forged/expired tokens
+        idinfo = id_token.verify_oauth2_token(
+            credential,
+            google_requests.Request(),
+            GOOGLE_WEB_CLIENT_ID,
+        )
+    except ValueError:
+        # Invalid / forged / expired token
+        return HTMLResponse(
+            status_code=401,
+            content=templates.get_template("login.html").render({
+                "request": request,
+                "client_id": GOOGLE_WEB_CLIENT_ID,
+                "error": "Jeton d'authentification invalide. Veuillez réessayer.",
+            }),
+        )
+
+    if not idinfo.get("email_verified"):
+        return HTMLResponse(
+            status_code=401,
+            content=templates.get_template("login.html").render({
+                "request": request,
+                "client_id": GOOGLE_WEB_CLIENT_ID,
+                "error": "L'adresse e-mail n'est pas vérifiée.",
+            }),
+        )
+
+    email = idinfo["email"].strip().lower()
+    if email not in AUTH_ALLOWED_EMAILS:
+        logger.info("Auth: Denied login for %s (not in AUTH_ALLOWED_EMAILS).", email)
+        return HTMLResponse(
+            status_code=403,
+            content=templates.get_template("login.html").render({
+                "request": request,
+                "client_id": GOOGLE_WEB_CLIENT_ID,
+                "error": "Ce compte n'est pas autorisé pour cette paroisse.",
+            }),
+        )
+
+    # Success — create session
+    request.session["user_email"] = email
+    logger.info("Auth: Login granted for %s.", email)
+    return RedirectResponse(url="/", status_code=302)
+
+
+@app.get("/auth/logout")
+async def auth_logout(request: Request):
+    """Clear session and redirect to login."""
+    request.session.clear()
+    return RedirectResponse(url="/login", status_code=302)
+
 
 app.mount("/static", StaticFiles(directory="ui/static"), name="static")
 templates = Jinja2Templates(directory="ui/templates")

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assistant Obsèques - Connexion</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <style>
+        .login-card {
+            max-width: 400px;
+            margin: 80px auto 0;
+            text-align: center;
+        }
+        .login-card h2 {
+            margin-bottom: 8px;
+            color: var(--text-slate);
+        }
+        .login-card p {
+            color: #64748B;
+            font-size: 14px;
+            margin-bottom: 24px;
+        }
+        .error-msg {
+            background-color: #FEF2F2;
+            color: #991B1B;
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            margin-bottom: 16px;
+        }
+        #g_id_signin {
+            display: flex;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="brand-header">
+            <h1 class="brand-title">Assistant Obsèques</h1>
+            <p class="brand-subtitle">Paroisse &amp; Espérance</p>
+        </div>
+
+        <div class="card login-card">
+            <h2>Connexion</h2>
+            <p>Connectez-vous avec votre compte Google paroissial pour accéder à l'assistant.</p>
+
+            {% if error %}
+            <div class="error-msg">{{ error }}</div>
+            {% endif %}
+
+            <div id="g_id_onload"
+                 data-client_id="{{ client_id }}"
+                 data-callback="handleCredentialResponse"
+                 data-auto_prompt="false">
+            </div>
+            <div id="g_id_signin"
+                 class="g_id_signin"
+                 data-type="standard"
+                 data-size="large"
+                 data-theme="outline"
+                 data-text="sign_in_with"
+                 data-shape="rectangular"
+                 data-locale="fr"
+                 data-logo_alignment="left">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function handleCredentialResponse(response) {
+            // POST the ID token to the server for verification
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/auth/google';
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'credential';
+            input.value = response.credential;
+            form.appendChild(input);
+            document.body.appendChild(form);
+            form.submit();
+        }
+    </script>
+</body>
+</html>
