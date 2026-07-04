@@ -23,6 +23,93 @@
             cursor: pointer;
             margin-bottom: 16px;
         }
+
+        /* ── Photo thumbnails with numbered badges ─────────── */
+        .photo-strip {
+            display: flex;
+            gap: 12px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            padding: 8px 0;
+            margin-top: 12px;
+        }
+        .photo-card {
+            position: relative;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+        .photo-card img {
+            width: 72px; height: 72px;
+            object-fit: cover;
+            border-radius: 10px;
+            border: 2px solid var(--border-cream-dark);
+        }
+        /* Numbered badge — top-left corner */
+        .photo-badge {
+            position: absolute;
+            top: -6px; left: -6px;
+            width: 22px; height: 22px;
+            border-radius: 50%;
+            background: var(--accent-sage);
+            color: #fff;
+            font-size: 12px; font-weight: 700;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,.25);
+            z-index: 2;
+        }
+        /* Remove (✕) button — top-right corner */
+        .photo-remove {
+            position: absolute;
+            top: -6px; right: -6px;
+            width: 22px; height: 22px;
+            border-radius: 50%;
+            background: #E53E3E; color: #fff;
+            border: none; font-size: 13px; font-weight: 700;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 1px 3px rgba(0,0,0,.25);
+            z-index: 2;
+            line-height: 1;
+        }
+        /* Move arrows (◀ ▶) under the thumbnail */
+        .photo-arrows {
+            display: flex; gap: 4px;
+        }
+        .photo-arrows button {
+            width: 26px; height: 26px;
+            border: 1px solid var(--border-cream-dark);
+            border-radius: 6px;
+            background: #fff;
+            color: var(--text-slate);
+            font-size: 12px;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .photo-arrows button:active {
+            background: var(--accent-sage);
+            color: #fff;
+        }
+        .photo-arrows button:disabled {
+            opacity: 0.25;
+            cursor: default;
+        }
+        .photo-order-hint {
+            font-size: 0.75rem;
+            color: #64748B;
+            text-align: center;
+            margin-top: 4px;
+        }
+        .photo-add-more {
+            display: inline-block;
+            margin-top: 8px;
+            font-size: 0.8rem;
+            color: var(--accent-sage);
+            cursor: pointer;
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
@@ -41,11 +128,17 @@
             <form action="/extract" method="POST" id="extractForm" enctype="multipart/form-data">
                 
                 <div class="drop-zone" id="dropZone">
-                    <input type="file" name="photos" id="photosInput" accept="image/*" multiple capture="environment">
+                    <!-- No capture= attribute: mobile offers gallery multi-select AND camera.
+                         The nominal case is 2+ pages photographed from different angles. -->
+                    <input type="file" name="photos" id="photosInput" accept="image/*" multiple>
                     <div class="drop-zone-text">Prendre une photo / Importer</div>
                     <div class="drop-zone-sub">Appuyez ici ou glissez vos fichiers JPEG/PNG. (Plusieurs pages possibles)</div>
-                    <div class="thumbnail-preview" id="thumbnailPreview"></div>
                 </div>
+
+                <!-- Photo strip with numbered thumbnails, rendered by JS -->
+                <div id="photoStrip" class="photo-strip" style="display:none;"></div>
+                <p id="photoOrderHint" class="photo-order-hint" style="display:none;">L'ordre des photos = l'ordre des pages. Vérifiez la numérotation.</p>
+                <span id="addMoreBtn" class="photo-add-more" style="display:none;" role="button" tabindex="0">+ Ajouter d'autres photos</span>
 
                 <label class="label-micro" for="notes">Ou saisie texte manuelle</label>
                 <textarea name="notes" id="notes" placeholder="Ex: Jeanne Martin, née le 12/04/1940..."></textarea>
@@ -64,6 +157,12 @@
     </div>
 
     <script>
+        // ── State: ordered array of File objects ────────────────────
+        // This is the source of truth for photo ordering.
+        // The native <input>.files list resets between picks;
+        // we accumulate across gallery trips here.
+        let photoFiles = [];
+
         async function loadExample() {
             try {
                 const res = await fetch('/api/example');
@@ -78,47 +177,153 @@
         const notesInput = document.getElementById('notes');
         const photosInput = document.getElementById('photosInput');
         const submitBtn = document.getElementById('submitBtn');
-        const thumbPreview = document.getElementById('thumbnailPreview');
+        const photoStrip = document.getElementById('photoStrip');
+        const photoOrderHint = document.getElementById('photoOrderHint');
+        const addMoreBtn = document.getElementById('addMoreBtn');
 
         function checkEnableSubmit() {
-            if (notesInput.value.trim() !== '' || photosInput.files.length > 0) {
-                submitBtn.disabled = false;
-            } else {
-                submitBtn.disabled = true;
-            }
+            submitBtn.disabled = !(notesInput.value.trim() !== '' || photoFiles.length > 0);
         }
 
         notesInput.addEventListener('input', checkEnableSubmit);
 
+        // ── File input: APPEND new picks to the array ──────────────
         photosInput.addEventListener('change', function(e) {
-            thumbPreview.innerHTML = '';
-            const files = e.target.files;
-            
-            if (files.length > 0) {
-                const subText = document.querySelector('.drop-zone-sub');
-                subText.textContent = "Cliquer pour remplacer";
-            } else {
-                document.querySelector('.drop-zone-sub').textContent = "Appuyez ici ou glissez vos fichiers JPEG/PNG. (Plusieurs pages possibles)";
-            }
-
-            for (let i = 0; i < files.length; i++) {
-                const file = files[i];
-                if (!file.type.startsWith('image/')) continue;
-                
-                const img = document.createElement('img');
-                img.src = URL.createObjectURL(file);
-                img.onload = function() {
-                    URL.revokeObjectURL(this.src);
-                }
-                thumbPreview.appendChild(img);
-            }
+            const newFiles = Array.from(e.target.files).filter(f => f.type.startsWith('image/'));
+            if (newFiles.length === 0) return;
+            // Append (not replace) — supports multiple gallery trips
+            photoFiles = photoFiles.concat(newFiles);
+            renderPhotoStrip();
             checkEnableSubmit();
         });
-        
-        document.getElementById('extractForm').addEventListener('submit', function() {
-            document.getElementById('submitBtn').disabled = true;
-            document.getElementById('submitBtn').style.opacity = '0.5';
+
+        // ── "Add more" button re-triggers the file picker ──────────
+        addMoreBtn.addEventListener('click', () => photosInput.click());
+        addMoreBtn.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); photosInput.click(); }
+        });
+
+        // ── Render numbered thumbnails ─────────────────────────────
+        function renderPhotoStrip() {
+            photoStrip.innerHTML = '';
+            const hasPhotos = photoFiles.length > 0;
+            photoStrip.style.display = hasPhotos ? 'flex' : 'none';
+            photoOrderHint.style.display = hasPhotos ? 'block' : 'none';
+            addMoreBtn.style.display = hasPhotos ? 'inline-block' : 'none';
+
+            // Update drop-zone hint
+            const subText = document.querySelector('.drop-zone-sub');
+            subText.textContent = hasPhotos
+                ? `${photoFiles.length} photo(s) sélectionnée(s)`
+                : "Appuyez ici ou glissez vos fichiers JPEG/PNG. (Plusieurs pages possibles)";
+
+            photoFiles.forEach((file, idx) => {
+                const card = document.createElement('div');
+                card.className = 'photo-card';
+
+                // Thumbnail image
+                const img = document.createElement('img');
+                img.src = URL.createObjectURL(file);
+                img.alt = `Page ${idx + 1}`;
+                img.onload = function() { URL.revokeObjectURL(this.src); };
+
+                // Numbered badge ① ② ③ …
+                const badge = document.createElement('span');
+                badge.className = 'photo-badge';
+                badge.textContent = idx + 1;
+
+                // Remove button ✕
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'photo-remove';
+                removeBtn.type = 'button';
+                removeBtn.innerHTML = '✕';
+                removeBtn.title = 'Retirer';
+                removeBtn.addEventListener('click', () => {
+                    photoFiles.splice(idx, 1);
+                    renderPhotoStrip();
+                    checkEnableSubmit();
+                });
+
+                // Move arrows ◀ ▶
+                const arrows = document.createElement('div');
+                arrows.className = 'photo-arrows';
+
+                const leftBtn = document.createElement('button');
+                leftBtn.type = 'button';
+                leftBtn.innerHTML = '◀';
+                leftBtn.title = 'Déplacer avant';
+                leftBtn.disabled = idx === 0;
+                leftBtn.addEventListener('click', () => {
+                    [photoFiles[idx - 1], photoFiles[idx]] = [photoFiles[idx], photoFiles[idx - 1]];
+                    renderPhotoStrip();
+                });
+
+                const rightBtn = document.createElement('button');
+                rightBtn.type = 'button';
+                rightBtn.innerHTML = '▶';
+                rightBtn.title = 'Déplacer après';
+                rightBtn.disabled = idx === photoFiles.length - 1;
+                rightBtn.addEventListener('click', () => {
+                    [photoFiles[idx], photoFiles[idx + 1]] = [photoFiles[idx + 1], photoFiles[idx]];
+                    renderPhotoStrip();
+                });
+
+                arrows.appendChild(leftBtn);
+                arrows.appendChild(rightBtn);
+
+                card.appendChild(badge);
+                card.appendChild(removeBtn);
+                card.appendChild(img);
+                card.appendChild(arrows);
+                photoStrip.appendChild(card);
+            });
+        }
+
+        // ── Form submission: rebuild FormData from our ordered array ─
+        // The native input.files is unreliable across multiple picks;
+        // we override it with our curated photoFiles array.
+        document.getElementById('extractForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const formData = new FormData();
+
+            // Append notes
+            formData.append('notes', notesInput.value);
+
+            // Append photos in display order — this IS the page order
+            photoFiles.forEach((file) => {
+                formData.append('photos', file);
+            });
+
+            // Show loading state
+            submitBtn.disabled = true;
+            submitBtn.style.opacity = '0.5';
             document.getElementById('loading').style.display = 'block';
+
+            // Submit via fetch, then redirect (mimic form POST)
+            fetch('/extract', {
+                method: 'POST',
+                body: formData,
+            })
+            .then(response => {
+                if (response.redirected) {
+                    window.location.href = response.url;
+                } else if (response.ok) {
+                    return response.text().then(html => {
+                        document.open();
+                        document.write(html);
+                        document.close();
+                    });
+                } else {
+                    throw new Error(`Server error: ${response.status}`);
+                }
+            })
+            .catch(err => {
+                alert("Erreur lors de l'extraction : " + err.message);
+                submitBtn.disabled = false;
+                submitBtn.style.opacity = '1';
+                document.getElementById('loading').style.display = 'none';
+            });
         });
     </script>
 </body>

@@ -227,6 +227,7 @@ async def post_extract(request: Request, notes: Optional[str] = Form(""), photos
                 except Exception as e:
                     logger.error(f"Image processing error: {e}")
                     raise HTTPException(status_code=400, detail="Fichier image invalide ou corrompu.")
+        logger.info("Extract: received %d photo(s) in client-specified order.", len(contents))
     
     if not contents and notes:
         contents = [notes]
