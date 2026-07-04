@@ -72,13 +72,15 @@ et les questions suggérées à la famille. Voir `examples/jeanne_martin/`.
 
 ### Mise en place
 ```bash
-cp .env.example .env
-# puis remplissez .env avec vos propres identifiants (jamais versionné)
+pip install -e .          # dépendances Python (Python 3.13 requis)
+npm install               # dépendances Node (package docx pour le déroulé Word)
+cp .env.example .env      # puis remplissez .env avec vos identifiants (jamais versionné)
+python agents/auth.py     # consentement OAuth unique (Gmail + Drive)
 ```
 
 ### Lancement
 ```bash
-# TODO après le scaffold : ex. adk web
+python ui/app.py          # http://localhost:8002 — AUTH_MODE=off par défaut en local
 ```
 
 ## Comment c'est construit
@@ -90,12 +92,28 @@ construits avec **Google ADK**, reliés à Google Docs, Gmail et Sheets via
 sur **Cloud Run** (privé, région Paris, coût quasi nul au repos). Détails
 techniques : [README anglais](README.md) et [`specs/interface.md`](specs/interface.md).
 
+## Déploiement (Cloud Run) — optionnel
+
+Le lancement local est pleinement fonctionnel (voir ci-dessus). Notre instance
+tourne sur **europe-west9** (Paris), ouverte au réseau mais protégée par
+l'application (Google Sign-In + liste d'adresses autorisées).
+
+Les commandes exactes, les identités (compte de service, OAuth, clé Gemini),
+la création des secrets et les notes de sécurité sont documentées dans le
+[README anglais § Deployment](README.md#deployment-cloud-run--optional).
+
+**Points clés :**
+- Aucun secret, token ou mot de passe dans l'image, le dépôt ou le Dockerfile.
+- `--allow-unauthenticated` : la porte est dans l'application, pas dans IAM.
+- `--max-instances 1` : état en mémoire, mono-session pour la démo.
+- Emails toujours en brouillon — jamais envoyés automatiquement.
+
 ## Feuille de route
 
 - **Aujourd'hui :** le parcours complet — photo → validation → déroulé Word,
   Doc, brouillon, registre.
-- **Ensuite :** l'historique enrichi, une authentification renforcée, et le
-  confort d'usage quotidien affiné avec vous.
+- **Ensuite :** IAP pour le contrôle d'accès organisationnel, Langfuse pour
+  l'observabilité, et état par session pour le multi-utilisateur.
 
 ## Licence
 

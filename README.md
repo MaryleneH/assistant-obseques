@@ -91,7 +91,7 @@ ordered `ceremony.liturgySteps` validated against a real order of service.
 | **MCP** | `integrations/mcp/` | Google Docs, Gmail, Google Sheets servers |
 | **Antigravity 2.0** | whole build | Spec-driven build (`AGENTS.md` + `specs/`), build-time skills, artifacts shown in the video |
 | **Security** | `security/`, hooks | Human gate, allow/deny lists, terminal sandboxing, gitleaks pre-commit, fictional-data-only rule |
-| **Deployability** | Cloud Run | `adk deploy cloud_run` — private, scale-to-zero, EU region |
+| **Deployability** | Cloud Run | Dockerfile + `gcloud run deploy` — application-gated (Google Sign-In), scale-to-zero, EU region |
 | **Agent Skills** | `.agent/skills/` + `skills/` | 2 build-time skills (commit format, secret scan) + 1 runtime skill (Word déroulé formatter) |
 
 ## Tech stack
@@ -101,7 +101,7 @@ ordered `ceremony.liturgySteps` validated against a real order of service.
 - **MCP servers**: Google Docs, Gmail, Google Sheets
 - **A2UI** validation screen, in a mobile-first web app (`ui/`)
 - **Runtime skill**: Node.js one-page Word renderer (`skills/deroule-obseques/`)
-- **Deployment**: Cloud Run, `europe-west9` (Paris) — private, scale-to-zero
+- **Deployment**: Cloud Run, `europe-west9` (Paris) — application-gated, scale-to-zero
 - **Observability** (bonus): Langfuse via OpenTelemetry, EU region
 
 ## Human-in-the-loop & safety
@@ -123,18 +123,26 @@ ordered `ceremony.liturgySteps` validated against a real order of service.
 
 ### Install
 ```bash
-# TODO after scaffold: e.g. uv sync
+pip install -e .          # Python deps (pinned to 3.13)
+npm install               # Node deps (docx package for the Word skill)
+cp .env.example .env      # then fill .env with your own credentials (gitignored)
 ```
 
-### Configure secrets
+### One-time OAuth consent (Gmail + Drive)
 ```bash
-cp .env.example .env
-# then fill .env with your own credentials (this file is gitignored)
+python agents/auth.py     # opens a browser; grant Gmail + Drive scopes
+                          # creates token.local.json (gitignored, never committed)
 ```
 
 ### Run
 ```bash
-# TODO after scaffold: e.g. adk web
+python ui/app.py          # http://localhost:8002 — AUTH_MODE=off by default locally
+```
+
+### Test
+```bash
+python eval/test_auth.py           # 7 auth-gate assertions
+python eval/test_edit_survival.py  # full pipeline proof (LLM + Google APIs)
 ```
 
 ## Demo & test case
@@ -144,16 +152,117 @@ The repo ships a fully **fictional** golden case — **Jeanne Martin, 84** — i
 expected extraction (`expected.json`), including missing fields, a WARNING
 status and suggested family questions. It drives both the demo and the eval.
 
-## Deployment
+---
+
+## Deployment (Cloud Run) — optional
+
+Local run is fully supported (see above) and deployment is optional per the
+competition rules. Our instance runs in **europe-west9** (Paris), network-open
+but **application-gated** (Google Sign-In + email allowlist).
+
+### Prerequisites
 
 ```bash
-adk deploy cloud_run   # target: europe-west9 (Paris)
+gcloud services enable \
+  run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com \
+  secretmanager.googleapis.com drive.googleapis.com gmail.googleapis.com \
+  sheets.googleapis.com generativelanguage.googleapis.com
 ```
 
-**Cloud Run** hosts the agents *and* the web interface as one unit: private
-(auth-gated — only the sacristan), **scale-to-zero** (near-free for a single
-user), **EU region** for GDPR alignment. See `specs/interface.md` for the
-full deployment rationale.
+### Identities
+
+- **Service account** — the service *runs as* a no-role SA whose only power is
+  Editor on the sacristan's registry Sheet (shared by the owner).
+- **Owner's OAuth consent** — one-time, via `python agents/auth.py` (Desktop
+  client, scopes `gmail.readonly + gmail.compose + drive.file`); produces a
+  token uploaded as a secret.
+- **Web OAuth client** — for the login screen (authorized JS origins: the
+  `*.run.app` URL + `http://localhost:8002`); its client ID becomes
+  `GOOGLE_WEB_CLIENT_ID`.
+- **Gemini API key** — `GOOGLE_API_KEY` env var.
+
+### Secrets
+
+```bash
+# 1. Gmail/Drive OAuth token (from local consent)
+gcloud secrets create gmail-oauth-token \
+  --data-file=token.local.json
+
+# 2. Gemini API key
+echo -n "YOUR_API_KEY" | \
+  gcloud secrets create google-api-key --data-file=-
+
+# 3. Session cookie signing key
+openssl rand -base64 48 | \
+  gcloud secrets create session-secret --data-file=-
+
+# Grant the SA access to all three
+for s in gmail-oauth-token google-api-key session-secret; do
+  gcloud secrets add-iam-policy-binding $s \
+    --member="serviceAccount:SA_EMAIL" \
+    --role="roles/secretmanager.secretAccessor"
+done
+```
+
+> 🚨 **No key, token or password ever enters the image, the repo, or the
+> Dockerfile.** `.gcloudignore` and `.dockerignore` exclude `.env`,
+> `*.local.*`, `service-account.json`, `test_photos/`, and `eval/real_cases/`.
+
+### Deploy
+
+```bash
+gcloud run deploy assistant-obseques \
+  --source . \
+  --region europe-west9 \
+  --allow-unauthenticated \
+  --service-account SA_EMAIL \
+  --memory 1Gi \
+  --max-instances 1 \
+  --set-secrets \
+    GMAIL_TOKEN_JSON=gmail-oauth-token:latest,\
+    GOOGLE_API_KEY=google-api-key:latest,\
+    SESSION_SECRET=session-secret:latest \
+  --set-env-vars "^;^EXTRACTOR_MODEL=gemini-2.5-flash;\
+WRITER_MODEL=gemini-2.5-flash;\
+SHEET_ID=your-sheet-id;\
+ALLOWED_EMAILS=sacristine@example.com,pere.bernard@example.com;\
+SACRISTAN_EMAIL=sacristine@example.com;\
+AUTH_MODE=on;\
+AUTH_HTTPS_ONLY=true;\
+GOOGLE_WEB_CLIENT_ID=your-web-client-id.apps.googleusercontent.com;\
+AUTH_ALLOWED_EMAILS=sacristine@example.com"
+```
+
+**Notes:**
+- `^;^` — custom separator because `ALLOWED_EMAILS` contains commas.
+- `--max-instances 1` — the demo uses in-memory single-session state by design.
+- `--allow-unauthenticated` — the gate lives in the **application**, not in IAM
+  (Google Sign-In + email allowlist; see Security notes below).
+
+### Security notes
+
+- **Network-open by design** — the gate lives in the application: server-side
+  Google ID token verification + email allowlist. Same allowlist philosophy as
+  the recipient belt (no email leaves the system to an unknown address).
+- **Least privilege everywhere** — the SA has no roles beyond Sheet Editor;
+  OAuth scopes are narrow (`gmail.compose`, never `gmail.send`; `drive.file`,
+  not `drive`).
+- **OAuth app in Testing mode** — refresh tokens expire ~7 days. Production
+  path: verified consent screen. IAP prototyped as the enterprise path
+  (requires a Workspace org) — documented as a next step.
+- **Source upload hygiene** — `.gcloudignore` / `.dockerignore` keep secrets,
+  tokens and real-case data out of the build context.
+- **Emails are drafts** — `gmail.compose` scope, `drafts.create` only. No
+  `gmail.send`, no send scope, anywhere.
+- **Teardown after judging** — delete the Cloud Run service + secrets, rotate
+  any keys used during the demo.
+
+### Next steps
+
+- **IAP** for organization-wide access control (requires a Workspace org).
+- **Langfuse observability** — hook present in `agents/telemetry.py` + `[obs]`
+  extra; wiring deferred to post-competition.
+- **Per-session state store** for multi-user (replace in-memory global).
 
 ## Project structure
 

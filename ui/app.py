@@ -27,7 +27,7 @@ logger = logging.getLogger("ui.app")
 # AUTH_MODE: "on" = require Google Sign-In (cloud default);
 #            "off" = skip auth entirely (local dev / test suites).
 AUTH_MODE = os.getenv("AUTH_MODE", "on").strip().lower()
-GOOGLE_WEB_CLIENT_ID = os.getenv("GOOGLE_WEB_CLIENT_ID", "")
+GOOGLE_WEB_CLIENT_ID = os.getenv("GOOGLE_WEB_CLIENT_ID", "").strip()
 AUTH_ALLOWED_EMAILS = {
     e.strip().lower()
     for e in os.getenv("AUTH_ALLOWED_EMAILS", "").split(",")
@@ -36,6 +36,12 @@ AUTH_ALLOWED_EMAILS = {
 # SESSION_SECRET must be ≥ 32 random bytes in production.
 # Fallback is for local dev only (AUTH_MODE=off).
 SESSION_SECRET = os.getenv("SESSION_SECRET", "local-dev-insecure-fallback-key-change-me")
+
+# Fail fast: auth is ON but the web client ID is missing → unusable login page
+if AUTH_MODE == "on" and not GOOGLE_WEB_CLIENT_ID:
+    print("FATAL: AUTH_MODE=on but GOOGLE_WEB_CLIENT_ID is empty. "
+          "Set it to your OAuth web client ID or use AUTH_MODE=off for local dev.")
+    sys.exit(1)
 
 # Routes exempt from the auth gate
 _AUTH_EXEMPT = {"/login", "/auth/google", "/auth/logout"}

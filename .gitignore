@@ -44,3 +44,7 @@ output/
 
 # Real test photos
 test_photos/
+
+# Real-case validation vault — protocol committed, data never (hard rule 7)
+eval/real_cases/*
+!eval/real_cases/README.md
