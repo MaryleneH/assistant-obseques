@@ -10,10 +10,11 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 
-# Scopes needed for the Gmail MCP server
+# Scopes needed for Gmail + Drive (single OAuth grant for the sacristan)
 SCOPES = [
     'https://www.googleapis.com/auth/gmail.readonly',
-    'https://www.googleapis.com/auth/gmail.compose'
+    'https://www.googleapis.com/auth/gmail.compose',
+    'https://www.googleapis.com/auth/drive.file',   # upload déroulé as Google Doc
 ]
 
 TOKEN_FILE = 'token.local.json'

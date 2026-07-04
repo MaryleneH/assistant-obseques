@@ -185,18 +185,19 @@ def append_ceremony_row(record: Record) -> Any:
     logging.info(f"-> SHEETS ROW APPENDED: range={updates.get('updatedRange')}")
     return updates
 
-
 def create_deroule_gdoc(record: Record) -> str | None:
     """Upload the .docx déroulé to Google Drive as a native Google Doc.
 
-    Uses the SAME service-account credentials as Sheets (no new trust
-    surface).  The service account OWNS the file and shares it with
-    SACRISTAN_EMAIL (role=writer) so the sacristan can co-edit.
+    Uses the sacristan's own OAuth credentials (same grant as Gmail,
+    scope: drive.file).  The document is created IN her Drive — she
+    owns it, no sharing step needed.
+
+    Service accounts have no Drive storage of their own (current Google
+    policy), so using the SA would fail with storageQuotaExceeded.
 
     Returns the webViewLink on success, None on failure.
     Never raises — the pipeline must not abort for a Drive hiccup.
     """
-    from google.oauth2 import service_account
     from googleapiclient.discovery import build
     from googleapiclient.http import MediaFileUpload
     from agents.liturgy import french_date
@@ -204,11 +205,6 @@ def create_deroule_gdoc(record: Record) -> str | None:
     docx_path = record.communication.documentLink
     if not docx_path or not os.path.isfile(docx_path):
         logging.warning("Drive: No .docx to upload (documentLink=%s).", docx_path)
-        return None
-
-    key_file = os.getenv("GOOGLE_SERVICE_ACCOUNT_KEY_FILE")
-    if not key_file:
-        logging.warning("Drive: GOOGLE_SERVICE_ACCOUNT_KEY_FILE not set. Skipping Google Doc upload.")
         return None
 
     # Build a human-friendly document name
@@ -221,10 +217,9 @@ def create_deroule_gdoc(record: Record) -> str | None:
         doc_title += f" — {date_str}"
 
     try:
-        creds = service_account.Credentials.from_service_account_file(
-            key_file,
-            scopes=["https://www.googleapis.com/auth/drive.file"],
-        )
+        # Same OAuth creds as Gmail — drive.file scope was added to the
+        # single grant, so one consent covers both.
+        creds = get_google_credentials()
         drive = build("drive", "v3", credentials=creds)
 
         # Upload with native conversion: the Drive API converts .docx to
@@ -247,32 +242,10 @@ def create_deroule_gdoc(record: Record) -> str | None:
 
         file_id = created.get("id")
         web_link = created.get("webViewLink")
-        logging.info("-> GDOC CREATED: id=%s, link=%s", file_id, web_link)
-
-        # Share with SACRISTAN_EMAIL (writer) so she can co-edit.
-        # If SACRISTAN_EMAIL is unset, the doc stays owned by the service
-        # account — still accessible via the link in Screen C.
-        sacristan = os.getenv("SACRISTAN_EMAIL", "").strip()
-        if sacristan:
-            try:
-                drive.permissions().create(
-                    fileId=file_id,
-                    body={
-                        "role": "writer",
-                        "type": "user",
-                        "emailAddress": sacristan,
-                    },
-                    sendNotificationEmail=False,
-                ).execute()
-                logging.info("Drive: Shared with %s (writer).", sacristan)
-            except Exception as perm_err:
-                # Non-fatal: the doc exists, just isn't shared yet
-                logging.warning("Drive: Failed to share with %s: %s", sacristan, perm_err)
-        else:
-            logging.info(
-                "Drive: SACRISTAN_EMAIL unset — doc created but not shared. "
-                "The sacristan can access it via the webViewLink."
-            )
+        logging.info(
+            "-> GDOC CREATED in sacristan's Drive: id=%s, link=%s",
+            file_id, web_link,
+        )
 
         return web_link
 
