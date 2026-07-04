@@ -1,3 +1,4 @@
+import copy
 import os
 import sys
 from utils.env import load_environment
@@ -351,11 +352,17 @@ async def post_action(request: Request, background_tasks: BackgroundTasks):
             data_model_wrapper = payload.get("dataModel", {})
             surfaces = data_model_wrapper.get("surfaces", {}) if data_model_wrapper.get("version") == "v0.9" else {}
             
+            # Deep copy: original_dict is the immutable reference for diff
+            # extraction. final_dict accumulates edits from all surfaces.
+            # A shallow copy here caused a critical bug: apply_diffs mutated
+            # shared nested dicts, so later surfaces overwrote earlier edits.
             original_dict = session_record.model_dump()
-            final_dict = original_dict.copy()
+            final_dict = copy.deepcopy(original_dict)
             
             for surface_id, surface_data in surfaces.items():
                 diffs = extract_diffs(original_dict, surface_data)
+                if diffs:
+                    logger.info(f"Rehydration: surface '{surface_id}' diffs: {list(diffs.keys())}")
                 apply_diffs(final_dict, diffs)
             
             new_record = Record(**final_dict)
