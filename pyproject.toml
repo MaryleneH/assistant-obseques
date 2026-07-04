@@ -18,7 +18,9 @@ dependencies = [
     "python-dotenv",
     "Pillow",
     "google-api-python-client",
+    "google-auth",
     "google-auth-oauthlib",
+    "itsdangerous",
     "mcp",
 ]
 
