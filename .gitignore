@@ -18,6 +18,7 @@ venv/
 # Node / frontend (A2UI screen, docx skill)
 node_modules/
 dist/
+ui/client.js
 
 # OS / Editor
 .DS_Store
