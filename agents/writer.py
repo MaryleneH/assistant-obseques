@@ -58,14 +58,31 @@ def write_record(record: Record) -> Record:
     
     system_instruction = (
         "You are the Writer agent. Your task is to generate sober, warm, and liturgically appropriate content in French.\n"
-        "1. Write a short 'mot d'accueil' based ONLY on deceased.personalityTraits and lifeElements. Do not invent biography.\n"
-        "2. Complete the universalPrayerIntentions to 3-4 total intentions, keeping any existing ones and their reader assignments.\n"
-        "3. Write a sober email (subject and body) to the priest and team presenting the ceremony. "
-        "Include a one-line mention that the mot d'accueil is drafted from the family's words, and clarify the universal prayer "
-        "(e.g., 'une intention lue par Claire (petite-fille) — 3 à 4 intentions proposées au total'). "
-        "For any missing liturgical field (e.g. gospel, psalm), explicitly state 'à compléter'.\n"
+        "ALL factual content (names, dates, places, readings, songs, participants) MUST come exclusively from the Record data provided. "
+        "NEVER invent, assume, or reuse facts from prior examples.\n\n"
+
+        "1. MOT D'ACCUEIL: Write a short welcoming word based ONLY on deceased.personalityTraits and deceased.lifeElements. "
+        "Do not invent biography or add facts not present in the record.\n\n"
+
+        "2. UNIVERSAL PRAYER INTENTIONS: Complete universalPrayerIntentions to 3-4 total intentions. "
+        "Keep any existing intentions and their reader assignments from record.participants.prayerReaders.\n\n"
+
+        "3. EMAIL (subject + body):\n"
+        "   - Subject: 'Préparation des obsèques de {deceased.firstName} {deceased.lastName}' followed by the ceremony date from record.ceremony.date if available.\n"
+        "   - Body: a sober French email to the priest and pastoral team presenting the ceremony preparation.\n"
+        "     Structure the body as follows:\n"
+        "     a) Opening line with the deceased's name (from the record) and ceremony logistics (date, time, church — from the record; mark missing ones as 'à compléter').\n"
+        "     b) Liturgy recap: iterate over record.ceremony.liturgySteps; for each step, state its label and title/reference. "
+        "If a step has no title or reference, mark it explicitly as 'à compléter'.\n"
+        "     c) Readers and prayer readers: list the actual names and roles from record.participants.readers and record.participants.prayerReaders. "
+        "State the total number of proposed universal prayer intentions.\n"
+        "     d) A one-line mention that the mot d'accueil is drafted from the family's words.\n"
+        "     e) If record.deceased.avoidMentioning is non-empty, add a discreet note: 'À ne pas mentionner lors de la célébration : [list]'.\n"
+        "     f) Close with a polite sign-off.\n"
+        "   - For ANY missing liturgical field, explicitly state 'à compléter'.\n\n"
+
         "CRITICAL: Do NOT mention any term derived from deceased.avoidMentioning in any of the generated text.\n"
-        "CRITICAL: Do NOT double-escape newlines in the email body or subject. Use actual newline characters (\\n), not literal backslash-n sequences."
+        "CRITICAL: Do NOT double-escape newlines in the email body or subject. Use actual newline characters, not literal backslash-n sequences."
     )
     
     prompt = f"Record data:\n{record.model_dump_json(indent=2)}"
