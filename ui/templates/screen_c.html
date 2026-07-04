@@ -59,6 +59,10 @@
                 
                 <a href="/api/download_deroule" class="btn-primary" style="margin-top: 16px; display: inline-block;">⬇️ Télécharger le Déroulé (Word)</a>
                 
+                {% if gdoc_link %}
+                <a href="{{ gdoc_link }}" target="_blank" rel="noopener" class="btn-primary" style="margin-top: 8px; display: inline-block; background-color: #4285F4;">📄 Ouvrir dans Google Docs (document partagé)</a>
+                {% endif %}
+                
                 <div class="info">
                     <strong>Récapitulatif :</strong>
                     <ul>
@@ -67,7 +71,11 @@
                         {% else %}
                         <li>Le brouillon d'e-mail a été sauvegardé dans votre boîte Gmail.</li>
                         {% endif %}
-                        <li>Le Google Doc a été créé dans votre Drive.</li>
+                        {% if gdoc_link %}
+                        <li>Le Google Doc a été créé dans votre Drive et partagé en écriture.</li>
+                        {% else %}
+                        <li style="color: #6B7280;">Le Google Doc n'a pas pu être créé (vérifier la configuration Drive).</li>
+                        {% endif %}
                         <li>La ligne de registre a été ajoutée à votre Google Sheet.</li>
                     </ul>
                 </div>

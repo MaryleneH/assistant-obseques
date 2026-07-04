@@ -65,7 +65,7 @@ def main():
     import ui.app as app_module
     record = app_module.session_record
     assert record is not None, "session_record is None after extraction"
-    record_dict = record.model_dump()
+    record_dict = record.model_dump(mode="json")
     print(f"   Status: {record.status}")
 
     # ── Phase 2: Build multi-surface payload (as the real client does) ──

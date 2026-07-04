@@ -427,6 +427,7 @@ async def get_screen_c(request: Request):
         "status": session_record.status.value,
         "deceased_name": f"{session_record.deceased.firstName} {session_record.deceased.lastName}".strip(),
         "draft_fallback": draft_fallback,
+        "gdoc_link": session_record.communication.gdocLink,
     }
     return HTMLResponse(templates.get_template("screen_c.html").render(context))
 

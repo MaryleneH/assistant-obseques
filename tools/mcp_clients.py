@@ -184,3 +184,99 @@ def append_ceremony_row(record: Record) -> Any:
     updates = append_result.get('updates', {})
     logging.info(f"-> SHEETS ROW APPENDED: range={updates.get('updatedRange')}")
     return updates
+
+
+def create_deroule_gdoc(record: Record) -> str | None:
+    """Upload the .docx déroulé to Google Drive as a native Google Doc.
+
+    Uses the SAME service-account credentials as Sheets (no new trust
+    surface).  The service account OWNS the file and shares it with
+    SACRISTAN_EMAIL (role=writer) so the sacristan can co-edit.
+
+    Returns the webViewLink on success, None on failure.
+    Never raises — the pipeline must not abort for a Drive hiccup.
+    """
+    from google.oauth2 import service_account
+    from googleapiclient.discovery import build
+    from googleapiclient.http import MediaFileUpload
+    from agents.liturgy import french_date
+
+    docx_path = record.communication.documentLink
+    if not docx_path or not os.path.isfile(docx_path):
+        logging.warning("Drive: No .docx to upload (documentLink=%s).", docx_path)
+        return None
+
+    key_file = os.getenv("GOOGLE_SERVICE_ACCOUNT_KEY_FILE")
+    if not key_file:
+        logging.warning("Drive: GOOGLE_SERVICE_ACCOUNT_KEY_FILE not set. Skipping Google Doc upload.")
+        return None
+
+    # Build a human-friendly document name
+    first = record.deceased.firstName or ""
+    last = record.deceased.lastName or ""
+    name = f"{first} {last}".strip() or "inconnu"
+    date_str = french_date(record.ceremony.date or "", capitalize=False)
+    doc_title = f"Déroulé — {name}"
+    if date_str:
+        doc_title += f" — {date_str}"
+
+    try:
+        creds = service_account.Credentials.from_service_account_file(
+            key_file,
+            scopes=["https://www.googleapis.com/auth/drive.file"],
+        )
+        drive = build("drive", "v3", credentials=creds)
+
+        # Upload with native conversion: the Drive API converts .docx to
+        # Google Doc when mimeType is set to the Google Docs MIME type.
+        file_metadata = {
+            "name": doc_title,
+            "mimeType": "application/vnd.google-apps.document",
+        }
+        media = MediaFileUpload(
+            docx_path,
+            mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            resumable=True,
+        )
+        logging.info("Drive: Uploading %s as Google Doc '%s'...", docx_path, doc_title)
+        created = drive.files().create(
+            body=file_metadata,
+            media_body=media,
+            fields="id,webViewLink",
+        ).execute()
+
+        file_id = created.get("id")
+        web_link = created.get("webViewLink")
+        logging.info("-> GDOC CREATED: id=%s, link=%s", file_id, web_link)
+
+        # Share with SACRISTAN_EMAIL (writer) so she can co-edit.
+        # If SACRISTAN_EMAIL is unset, the doc stays owned by the service
+        # account — still accessible via the link in Screen C.
+        sacristan = os.getenv("SACRISTAN_EMAIL", "").strip()
+        if sacristan:
+            try:
+                drive.permissions().create(
+                    fileId=file_id,
+                    body={
+                        "role": "writer",
+                        "type": "user",
+                        "emailAddress": sacristan,
+                    },
+                    sendNotificationEmail=False,
+                ).execute()
+                logging.info("Drive: Shared with %s (writer).", sacristan)
+            except Exception as perm_err:
+                # Non-fatal: the doc exists, just isn't shared yet
+                logging.warning("Drive: Failed to share with %s: %s", sacristan, perm_err)
+        else:
+            logging.info(
+                "Drive: SACRISTAN_EMAIL unset — doc created but not shared. "
+                "The sacristan can access it via the webViewLink."
+            )
+
+        return web_link
+
+    except Exception as e:
+        logging.error("Drive: Failed to create Google Doc: %s", e, exc_info=True)
+        return None
+

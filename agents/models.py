@@ -67,6 +67,7 @@ class Communication(BaseModel):
     priestEmail: Optional[str] = None
     teamEmails: List[str] = []
     documentLink: Optional[str] = None
+    gdocLink: Optional[str] = None  # Google Docs webViewLink (Drive upload)
     emailSubject: Optional[str] = None
     emailBody: Optional[str] = None
     emailDraftCreated: bool = False

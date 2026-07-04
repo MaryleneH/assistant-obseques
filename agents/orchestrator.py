@@ -2,6 +2,7 @@
 Orchestrator Agent for Assistant Obsèques.
 Manages the end-to-end multi-agent pipeline and state transitions.
 """
+import logging
 from typing import List
 from .models import Record, CeremonyStatus
 from .extractor import extract_record
@@ -9,7 +10,7 @@ from .checker import check_record
 from .writer import write_record
 from tools.deroule import build_deroule
 
-from tools.mcp_clients import create_gmail_draft, append_ceremony_row
+from tools.mcp_clients import create_gmail_draft, append_ceremony_row, create_deroule_gdoc
 
 def run_until_review(pages: List[str]) -> Record:
     """
@@ -40,6 +41,19 @@ def run_after_validation(record: Record) -> Record:
     record = write_record(record)
     record = build_deroule(record)
     
+    # Upload the .docx to Google Drive as a native Google Doc.
+    # Failure here must NOT abort the pipeline — draft + sheet still matter.
+    try:
+        gdoc_link = create_deroule_gdoc(record)
+        if gdoc_link:
+            record.communication.gdocLink = gdoc_link
+            print(f"-> GDOC CREATED: {gdoc_link}")
+        else:
+            logging.warning("Drive: Google Doc upload returned None (see logs above).")
+    except Exception as e:
+        logging.error("Drive: Google Doc upload failed (non-fatal): %s", e, exc_info=True)
+        record.communication.gdocLink = None
+
     # Run external MCP tools
     draft_result = create_gmail_draft(record)
     # Track whether the fallback recipient was used so the UI can show
@@ -61,3 +75,4 @@ def run_after_validation(record: Record) -> Record:
     record.__dict__['_draft_fallback'] = draft_fallback
     
     return record
+
