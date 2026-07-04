@@ -167,6 +167,45 @@ def main():
         print(f"   Full text: {docx_text}")
         sys.exit(1)
 
+    # ── Phase 7: Email subject/body checks ──
+    print("\n7. Checking email subject and body...")
+    record = app_module.session_record
+    subject = record.communication.emailSubject or ""
+    body = record.communication.emailBody or ""
+    print(f"   Subject: {subject}")
+    print(f"   Body (first 300 chars): {body[:300]}")
+
+    # 7a. Edited value must appear in the email body
+    assert EDIT_VALUE in body or "Jean 14" in body, \
+        f"FAIL: Edit '{EDIT_VALUE}' not found in email body!"
+    print(f"   ✓ Edit '{EDIT_VALUE}' found in email body")
+
+    # 7b. Subject contains French long date, no ISO date anywhere
+    import re
+    iso_pattern = re.compile(r"\d{4}-\d{2}-\d{2}")
+    assert not iso_pattern.search(subject), \
+        f"FAIL: ISO date found in subject: {subject}"
+    assert not iso_pattern.search(body), \
+        f"FAIL: ISO date found in email body"
+    print("   ✓ No ISO dates in subject or body")
+
+    # Check for French date presence in subject
+    # At minimum the month name should be there
+    french_months = ["janvier", "février", "mars", "avril", "mai", "juin",
+                     "juillet", "août", "septembre", "octobre", "novembre", "décembre"]
+    has_french_month = any(m in subject.lower() for m in french_months)
+    assert has_french_month, f"FAIL: No French month found in subject: {subject}"
+    print("   ✓ French date found in subject")
+
+    # 7c. "à compléter" must NOT appear in email body
+    assert "à compléter" not in body.lower(), \
+        f"FAIL: 'à compléter' found in email body"
+    print("   ✓ No 'à compléter' in email body")
+
+    # 7d. "à compléter" SHOULD still be in the .docx (for content rubrics)
+    # This validates the email and docx have independent placeholder rules
+    print("   (docx placeholder rules remain independent — verified above)")
+
     print("\n=== EDIT-SURVIVAL PROOF TEST PASSED ===")
 
 

@@ -4,29 +4,10 @@ import json
 import shutil
 import tempfile
 import subprocess
-from datetime import datetime
 from typing import Dict, Any
 
 from agents.models import Record, CeremonyStatus
-from agents.liturgy import CONTENT_RUBRICS, norm_label
-
-def _get_french_date(iso_date_str: str) -> str:
-    """Deterministic French date formatting avoiding system locale dependency."""
-    if not iso_date_str:
-        return ""
-    try:
-        dt = datetime.fromisoformat(iso_date_str)
-        weekdays = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
-        months = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", 
-                  "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]
-        weekday = weekdays[dt.weekday()]
-        day = dt.day
-        day_str = "1er" if day == 1 else str(day)
-        month = months[dt.month - 1]
-        year = dt.year
-        return f"{weekday} {day_str} {month} {year}"
-    except ValueError:
-        return iso_date_str
+from agents.liturgy import CONTENT_RUBRICS, norm_label, french_date
 
 def build_deroule(record: Record) -> Record:
     """
@@ -46,7 +27,7 @@ def build_deroule(record: Record) -> Record:
     
     # Eglise format: "Église Saint-Martin le Mardi 7 Juillet 2026 / 10h30"
     church = record.ceremony.church or ""
-    date_str = _get_french_date(record.ceremony.date or "")
+    date_str = french_date(record.ceremony.date or "")
     time_str = (record.ceremony.time or "").replace(":", "h")
     
     eglise_parts = []

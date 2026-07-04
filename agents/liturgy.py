@@ -9,6 +9,43 @@ Every consumer (extractor prompt, UI scaffold, déroulé mapper) imports from
 here so the ontology cannot drift.
 """
 import re
+from datetime import datetime as _dt
+
+
+# ---------------------------------------------------------------------------
+# Deterministic French date formatting — never depends on system locale.
+# Shared by: tools/deroule.py (Word doc header), agents/writer.py (email
+# subject/body).  A single source of truth prevents ISO dates leaking
+# into user-facing text.
+# ---------------------------------------------------------------------------
+_WEEKDAYS = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
+_MONTHS = [
+    "janvier", "février", "mars", "avril", "mai", "juin",
+    "juillet", "août", "septembre", "octobre", "novembre", "décembre",
+]
+
+
+def french_date(iso_date_str: str, *, capitalize: bool = True) -> str:
+    """Convert an ISO date (YYYY-MM-DD) to 'mardi 7 juillet 2026'.
+
+    Deterministic: explicit lookup tables, no locale dependency.
+    *capitalize* controls whether weekday/month get title-case.
+    """
+    if not iso_date_str:
+        return ""
+    try:
+        dt = _dt.fromisoformat(iso_date_str)
+        weekday = _WEEKDAYS[dt.weekday()]
+        day_str = "1er" if dt.day == 1 else str(dt.day)
+        month = _MONTHS[dt.month - 1]
+        year = dt.year
+        result = f"{weekday} {day_str} {month} {year}"
+        if capitalize:
+            # Title-case weekday and month for header usage
+            result = f"{weekday.capitalize()} {day_str} {month.capitalize()} {year}"
+        return result
+    except ValueError:
+        return iso_date_str
 
 # ---------------------------------------------------------------------------
 # The 18 canonical rubric labels in liturgical order.
