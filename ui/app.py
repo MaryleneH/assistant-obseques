@@ -306,9 +306,12 @@ async def get_messages():
 def background_generation(record: Record):
     global session_record
     try:
-        session_record = run_after_validation(record)
+        logger.info(f"background_generation: starting, record.status={record.status}")
+        result = run_after_validation(record)
+        logger.info(f"background_generation: completed, result.status={result.status}, docLink={result.communication.documentLink}")
+        session_record = result
     except Exception as e:
-        logger.error(f"Generation failed: {e}")
+        logger.error(f"Generation failed: {e}", exc_info=True)
 
 def extract_diffs(original, updated):
     diff = {}
@@ -396,7 +399,14 @@ async def download_deroule():
     if not session_record:
         return JSONResponse(status_code=404, content={"error": "Fichier introuvable"})
         
-    if session_record.status != CeremonyStatus.validated:
+    # Allow download once generation pipeline has completed (document_created or later)
+    terminal_states = {
+        CeremonyStatus.document_created,
+        CeremonyStatus.email_draft_created,
+        CeremonyStatus.validated,
+        CeremonyStatus.archived,
+    }
+    if session_record.status not in terminal_states:
         return JSONResponse(status_code=202, content={"error": "Génération en cours…"})
         
     doc_link = session_record.communication.documentLink
