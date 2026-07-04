@@ -421,12 +421,14 @@ async def get_screen_c(request: Request):
     # Check if the Gmail draft used the sacristan fallback recipient
     # (set by the orchestrator via record.__dict__['_draft_fallback'])
     draft_fallback = getattr(session_record, '_draft_fallback', False)
+    draft_attachment = getattr(session_record, '_draft_attachment', False)
     
     context = {
         "request": request,
         "status": session_record.status.value,
         "deceased_name": f"{session_record.deceased.firstName} {session_record.deceased.lastName}".strip(),
         "draft_fallback": draft_fallback,
+        "draft_attachment": draft_attachment,
         "gdoc_link": session_record.communication.gdocLink,
     }
     return HTMLResponse(templates.get_template("screen_c.html").render(context))

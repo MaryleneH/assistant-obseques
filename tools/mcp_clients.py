@@ -27,13 +27,19 @@ def create_gmail_draft(record: Record) -> Any:
     """
     Creates a Gmail draft for the ceremony preparation email.
     
+    When a .docx déroulé exists (record.communication.documentLink),
+    it is attached to the draft so the priest receives a self-sufficient
+    email.  The draft is NEVER sent — gmail.compose covers draft
+    creation/update; no send scope is requested.
+    
     Fallback behavior: when no recipients are found in the record
     (no priestEmail, no teamEmails), the draft is addressed to
     SACRISTAN_EMAIL — the sacristan's own mailbox — so the deliverable
     always exists. She fills in real recipients at send time.
     
-    Returns a dict with the Gmail API response and a 'fallback_recipient'
-    boolean indicating whether the fallback was used.
+    Returns a dict with the Gmail API response, a 'fallback_recipient'
+    boolean, and an 'attachment' boolean indicating if the .docx was
+    attached.
     """
     recipients = []
     if record.communication.priestEmail:
@@ -87,6 +93,34 @@ def create_gmail_draft(record: Record) -> Any:
     message['To'] = ", ".join(recipients)
     message['Subject'] = subject
 
+    # Attach the .docx déroulé when it exists — the draft becomes
+    # self-sufficient.  Guard: only when build_deroule succeeded.
+    attachment_added = False
+    docx_path = record.communication.documentLink
+    if docx_path and os.path.isfile(docx_path):
+        try:
+            with open(docx_path, "rb") as f:
+                docx_data = f.read()
+            # Build a clean filename from the case ID
+            case_id = record.caseId or "ceremony"
+            filename = f"deroule_{case_id}.docx"
+            message.add_attachment(
+                docx_data,
+                maintype="application",
+                subtype="vnd.openxmlformats-officedocument.wordprocessingml.document",
+                filename=filename,
+            )
+            attachment_added = True
+            logging.info("Gmail: Attached %s (%d bytes).", filename, len(docx_data))
+        except Exception as att_err:
+            # Non-fatal: the draft is still useful without the attachment
+            logging.warning("Gmail: Failed to attach .docx: %s", att_err)
+    else:
+        logging.info(
+            "Gmail: No .docx to attach (documentLink=%s). "
+            "Draft created without attachment.", docx_path
+        )
+
     encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
     create_message = {'message': {'raw': encoded_message}}
 
@@ -94,8 +128,9 @@ def create_gmail_draft(record: Record) -> Any:
         logging.info("Gmail: Calling drafts().create()...")
         draft = service.users().drafts().create(userId="me", body=create_message).execute()
         logging.info(f"-> GMAIL DRAFT CREATED: id={draft['id']}")
-        # Attach fallback flag so the orchestrator can propagate to the UI
+        # Attach metadata so the orchestrator can propagate to the UI
         draft['fallback_recipient'] = fallback_used
+        draft['attachment'] = attachment_added
         return draft
     except Exception as e:
         logging.error(f"Failed to create Gmail draft: {e}")

@@ -60,9 +60,11 @@ def run_after_validation(record: Record) -> Record:
     # the appropriate notice on Screen C. We use object.__setattr__
     # to bypass Pydantic's strict attribute checks (no schema change).
     draft_fallback = False
+    draft_attachment = False
     if draft_result:
         print(f"-> GMAIL DRAFT CREATED: {draft_result}")
         draft_fallback = bool(draft_result.get('fallback_recipient'))
+        draft_attachment = bool(draft_result.get('attachment'))
         
     record.communication.emailDraftCreated = True
     record.status = CeremonyStatus.email_draft_created
@@ -73,6 +75,7 @@ def run_after_validation(record: Record) -> Record:
     
     # Attach non-model metadata for UI consumption
     record.__dict__['_draft_fallback'] = draft_fallback
+    record.__dict__['_draft_attachment'] = draft_attachment
     
     return record
 

@@ -67,9 +67,9 @@
                     <strong>Récapitulatif :</strong>
                     <ul>
                         {% if draft_fallback %}
-                        <li style="color: #B45309;">✉️ Brouillon créé à votre adresse (aucun destinataire dans les notes) — complétez les destinataires avant envoi.</li>
+                        <li style="color: #B45309;">✉️ Brouillon créé à votre adresse (aucun destinataire dans les notes) — complétez les destinataires avant envoi.{% if draft_attachment %} (déroulé joint){% endif %}</li>
                         {% else %}
-                        <li>Le brouillon d'e-mail a été sauvegardé dans votre boîte Gmail.</li>
+                        <li>Le brouillon d'e-mail a été sauvegardé dans votre boîte Gmail{% if draft_attachment %} (déroulé joint){% endif %}.</li>
                         {% endif %}
                         {% if gdoc_link %}
                         <li>Le Google Doc a été créé dans votre Drive.</li>
