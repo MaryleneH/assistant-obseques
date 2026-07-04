@@ -25,25 +25,62 @@ from googleapiclient.discovery import build
 
 def create_gmail_draft(record: Record) -> Any:
     """
-    Fallback: Official Gmail MCP server is Developer-Preview-gated.
-    We create the draft via the Gmail API directly, using the same OAuth credentials
-    (gmail.readonly + gmail.compose).
+    Creates a Gmail draft for the ceremony preparation email.
+    
+    Fallback behavior: when no recipients are found in the record
+    (no priestEmail, no teamEmails), the draft is addressed to
+    SACRISTAN_EMAIL — the sacristan's own mailbox — so the deliverable
+    always exists. She fills in real recipients at send time.
+    
+    Returns a dict with the Gmail API response and a 'fallback_recipient'
+    boolean indicating whether the fallback was used.
     """
     recipients = []
     if record.communication.priestEmail:
         recipients.append(record.communication.priestEmail)
     if record.communication.teamEmails:
         recipients.extend(record.communication.teamEmails)
-        
+
+    fallback_used = False
+    body_text = record.communication.emailBody or ""
+
     if not recipients:
-        logging.info("Gmail: No recipients defined (priestEmail/teamEmail). Skipping draft creation.")
-        return None
+        # No recipients in the notes — try the sacristan's own mailbox
+        sacristan = os.getenv("SACRISTAN_EMAIL", "").strip()
+        if not sacristan:
+            logging.info(
+                "Gmail: No recipients and SACRISTAN_EMAIL is unset. "
+                "Skipping draft creation."
+            )
+            return None
+
+        # The sacristan email must pass the same allowlist as any recipient
+        allowed_raw = os.getenv("ALLOWED_EMAILS", "")
+        allowed = {e.strip().lower() for e in allowed_raw.split(",") if e.strip()}
+        if sacristan.lower() not in allowed:
+            logging.info(
+                "Gmail: SACRISTAN_EMAIL (%s) is not in ALLOWED_EMAILS. "
+                "Skipping draft creation.", sacristan
+            )
+            return None
+
+        recipients = [sacristan]
+        fallback_used = True
+        # Prepend a visible warning so the sacristan knows to add real recipients
+        body_text = (
+            "⚠️ Adresse du prêtre absente des notes — brouillon adressé "
+            "à vous-même ; complétez les destinataires avant envoi.\n\n"
+            + body_text
+        )
+        logging.info(
+            "Gmail: No recipients in notes — fallback to SACRISTAN_EMAIL (%s).",
+            sacristan,
+        )
 
     creds = get_google_credentials()
     service = build('gmail', 'v1', credentials=creds)
 
     subject = record.communication.emailSubject
-    body_text = record.communication.emailBody
 
     message = EmailMessage()
     message.set_content(body_text)
@@ -57,6 +94,8 @@ def create_gmail_draft(record: Record) -> Any:
         logging.info("Gmail: Calling drafts().create()...")
         draft = service.users().drafts().create(userId="me", body=create_message).execute()
         logging.info(f"-> GMAIL DRAFT CREATED: id={draft['id']}")
+        # Attach fallback flag so the orchestrator can propagate to the UI
+        draft['fallback_recipient'] = fallback_used
         return draft
     except Exception as e:
         logging.error(f"Failed to create Gmail draft: {e}")
