@@ -266,6 +266,17 @@ def main():
     assert att["size"] > 0, f"FAIL: .docx attachment size is 0"
     print(f"   ✓ Attachment: {att['filename']} ({att['size']} bytes, {att['mimeType']})")
 
+    # ── Phase 9: Verify Google Doc was created ──
+    # Regression guard: the gdoc upload is non-fatal in production, but
+    # in the test environment it MUST succeed — this catches any telemetry
+    # wrapper or refactoring that accidentally breaks the Drive path.
+    print("\n9. Verifying Google Doc link...")
+    gdoc_link = record.communication.gdocLink
+    assert gdoc_link, "FAIL: gdocLink is None — Google Doc was not created"
+    assert "docs.google.com" in gdoc_link, \
+        f"FAIL: gdocLink doesn't look like a Google Doc URL: {gdoc_link}"
+    print(f"   ✓ gdocLink = {gdoc_link}")
+
     print("\n=== EDIT-SURVIVAL PROOF TEST PASSED ===")
 
 

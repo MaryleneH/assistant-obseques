@@ -85,5 +85,13 @@ def main():
     has_maladie = "maladie" in full_text
     print(f"Assertion 'maladie' NOT present in Writer output: {'FAIL' if has_maladie else 'PASS'}")
 
+    # Google Doc regression guard — the upload is non-fatal in prod, but
+    # in the test env it MUST succeed so regressions are caught.
+    gdoc_link = record.communication.gdocLink
+    gdoc_ok = bool(gdoc_link and "docs.google.com" in gdoc_link)
+    print(f"Assertion gdocLink is a valid Google Doc URL: {'PASS' if gdoc_ok else 'FAIL'}")
+    if gdoc_ok:
+        print(f"-> Google Doc: {gdoc_link}")
+
 if __name__ == "__main__":
     main()
