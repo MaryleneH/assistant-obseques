@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import shutil
 import tempfile
 import subprocess
 from datetime import datetime
@@ -96,11 +97,9 @@ def build_deroule(record: Record) -> Record:
         "prochaineMesse": record.ceremony.nextMass or ""
     }
 
-    # 2. Invoke Node.js script
-    # Ensure node is available
-    try:
-        subprocess.run(["node", "--version"], capture_output=True, check=True, shell=True)
-    except (subprocess.CalledProcessError, FileNotFoundError):
+    # 2. Resolve Node.js executable portably (works on Windows, Linux, macOS)
+    node_bin = shutil.which("node")
+    if not node_bin:
         print("FATAL: Node.js is not installed or not in PATH. Required for deroule generation.", file=sys.stderr)
         sys.exit(1)
 
@@ -115,16 +114,30 @@ def build_deroule(record: Record) -> Record:
         temp_input_path = tmp_in.name
 
     try:
-        npm_root = subprocess.run(["npm", "root", "-g"], capture_output=True, text=True, check=True, shell=True).stdout.strip()
-        env = os.environ.copy()
-        env["NODE_PATH"] = npm_root
-        
-        cmd = ["node", script_path, temp_input_path, output_docx]
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True, encoding="utf-8", env=env, shell=True)
+        # shell=False: safe on all platforms; no argument-dropping on Linux.
+        # stdin=DEVNULL: prevents node from hanging waiting on stdin if script
+        #   path is wrong or missing.
+        # timeout=60s: belt-and-suspenders against runaway processes.
+        # Node resolves require('docx') by walking up from the script to the
+        # repo-root node_modules — no NODE_PATH manipulation needed.
+        cmd = [node_bin, script_path, temp_input_path, output_docx]
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            check=True,
+            encoding="utf-8",
+            stdin=subprocess.DEVNULL,
+            timeout=60,
+            shell=False,
+        )
         
         record.communication.documentLink = output_docx
         record.status = CeremonyStatus.document_created
         return record
+    except subprocess.TimeoutExpired:
+        print("FATAL: Word déroulé generation timed out after 60s.", file=sys.stderr)
+        sys.exit(1)
     except subprocess.CalledProcessError as e:
         print(f"FATAL: Word déroulé generation failed.", file=sys.stderr)
         print(f"STDOUT: {e.stdout}", file=sys.stderr)
@@ -133,3 +146,4 @@ def build_deroule(record: Record) -> Record:
     finally:
         if os.path.exists(temp_input_path):
             os.remove(temp_input_path)
+
