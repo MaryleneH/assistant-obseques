@@ -9,11 +9,15 @@
       body {
         margin: 0;
         padding: 20px;
+        overflow-x: hidden;
       }
       .a2ui-container {
         /* Matches mobile-first max-width container */
         max-width: 600px;
         margin: 0 auto;
+      }
+      @media (max-width: 640px) {
+        body { padding: 12px; }
       }
     </style>
   </head>

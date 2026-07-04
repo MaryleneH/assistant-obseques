@@ -6,13 +6,6 @@
     <title>Assistant Obsèques - Nouvelle célébration</title>
     <link rel="stylesheet" href="/static/style.css">
     <style>
-        #loading {
-            display: none;
-            text-align: center;
-            font-weight: bold;
-            color: var(--accent-sage);
-            margin-top: 16px;
-        }
         .secondary {
             background-color: #EDF2F7;
             color: var(--text-slate);
@@ -146,7 +139,17 @@
                 <button type="submit" class="btn-primary" id="submitBtn" disabled>✨ Extraire les informations</button>
             </form>
 
-            <div id="loading">Extraction en cours... (environ 15 secondes)</div>
+    <!-- Candle loader overlay (shared component from style.css) -->
+    <div id="candleOverlay" class="candle-overlay">
+        <div class="candle">
+            <div class="candle-glow"></div>
+            <div class="candle-flame"></div>
+            <div class="candle-wick"></div>
+            <div class="candle-wax"></div>
+        </div>
+        <div id="candleMsg" class="candle-message">Lecture de la feuille…</div>
+        <div class="candle-submessage">Cela prend généralement moins d'une minute.</div>
+    </div>
 
             <div class="help-box">
                 <h3>Aide & consignes</h3>
@@ -295,10 +298,11 @@
                 formData.append('photos', file);
             });
 
-            // Show loading state
+            // Show candle overlay + disable button
             submitBtn.disabled = true;
-            submitBtn.style.opacity = '0.5';
-            document.getElementById('loading').style.display = 'block';
+            const overlay = document.getElementById('candleOverlay');
+            overlay.classList.add('active');
+            startCandleMessages();
 
             // Submit via fetch, then redirect (mimic form POST)
             fetch('/extract', {
@@ -315,16 +319,43 @@
                         document.close();
                     });
                 } else {
-                    throw new Error(`Server error: ${response.status}`);
+                    throw new Error(`Erreur serveur (${response.status})`);
                 }
             })
             .catch(err => {
-                alert("Erreur lors de l'extraction : " + err.message);
+                // Restore form on error — no dead overlay
+                overlay.classList.remove('active');
+                stopCandleMessages();
                 submitBtn.disabled = false;
-                submitBtn.style.opacity = '1';
-                document.getElementById('loading').style.display = 'none';
+                checkEnableSubmit();
+                alert("Une erreur est survenue : " + err.message + "\nVeuillez réessayer.");
             });
         });
+
+        // ── Candle: rotating French status messages ──────────────
+        const CANDLE_MESSAGES = [
+            'Lecture de la feuille\u2026',
+            'Transcription des rubriques de la c\u00e9l\u00e9bration\u2026',
+            'V\u00e9rification des informations\u2026',
+        ];
+        let candleIdx = 0;
+        let candleTimer = null;
+        function startCandleMessages() {
+            candleIdx = 0;
+            const el = document.getElementById('candleMsg');
+            el.textContent = CANDLE_MESSAGES[0];
+            candleTimer = setInterval(() => {
+                candleIdx = (candleIdx + 1) % CANDLE_MESSAGES.length;
+                el.style.opacity = '0';
+                setTimeout(() => {
+                    el.textContent = CANDLE_MESSAGES[candleIdx];
+                    el.style.opacity = '1';
+                }, 400);
+            }, 6000);
+        }
+        function stopCandleMessages() {
+            if (candleTimer) { clearInterval(candleTimer); candleTimer = null; }
+        }
     </script>
 </body>
 </html>
