@@ -62,6 +62,13 @@ system without an explicit human validation step.
 8. **Data minimization.** Do not persist raw photos to the Sheet — store only
    structured fields. EU-region processing is the target.
 
+9. **Secrets are human-only territory.** Never read, print, echo, or modify `.env`,
+   `token.local.json`, `service-account.json`, or any gitignored file containing
+   credentials — not even to "fix" them. When a change to such a file is needed,
+   DESCRIBE the exact edit (key name + what to change, never current values) and
+   STOP: the human applies it and confirms. Rationale: these files entering the
+   agent context = credential exposure requiring key rotation.
+
 ## Conventions
 
 - **Directory map (two worlds — build-time vs runtime):**

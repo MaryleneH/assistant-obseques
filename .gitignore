@@ -41,3 +41,6 @@ data/
 # (hard rule 7 extended to outputs); only the pipeline may write here.
 output/
 .adk/
+
+# Real test photos
+test_photos/
