@@ -108,12 +108,19 @@ la création des secrets et les notes de sécurité sont documentées dans le
 - `--max-instances 1` : état en mémoire, mono-session pour la démo.
 - Emails toujours en brouillon — jamais envoyés automatiquement.
 
+## Observabilité (optionnel)
+
+Traçage Langfuse opt-in : trois variables d'environnement (`LANGFUSE_PUBLIC_KEY`,
+`LANGFUSE_SECRET_KEY`, `LANGFUSE_HOST`). **Par défaut, seules les métadonnées
+opérationnelles sont transmises** (modèle, durée, statut) — jamais le contenu
+des notes. `LANGFUSE_TRACE_CONTENT=true` active les payloads (dev fictif uniquement).
+
 ## Feuille de route
 
 - **Aujourd'hui :** le parcours complet — photo → validation → déroulé Word,
-  Doc, brouillon, registre.
-- **Ensuite :** IAP pour le contrôle d'accès organisationnel, Langfuse pour
-  l'observabilité, et état par session pour le multi-utilisateur.
+  Doc, brouillon, registre. Observabilité Langfuse câblée (opt-in).
+- **Ensuite :** IAP pour le contrôle d'accès organisationnel,
+  et état par session pour le multi-utilisateur.
 
 ## Licence
 

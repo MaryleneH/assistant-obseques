@@ -257,11 +257,24 @@ AUTH_ALLOWED_EMAILS=sacristine@example.com"
 - **Teardown after judging** — delete the Cloud Run service + secrets, rotate
   any keys used during the demo.
 
+### Observability (optional)
+
+Langfuse tracing is opt-in.  Set three env vars (or Cloud Run secrets):
+
+| Variable | Example | Purpose |
+|---|---|---|
+| `LANGFUSE_PUBLIC_KEY` | `pk-lf-...` | Public key from your Langfuse project |
+| `LANGFUSE_SECRET_KEY` | `sk-lf-...` | Secret key |
+| `LANGFUSE_HOST` | `https://cloud.langfuse.com` | Langfuse host (EU cloud recommended) |
+
+**Privacy default:** traces carry operational metadata only (model id, duration,
+step count, status).  Note/record content is **never** sent unless
+`LANGFUSE_TRACE_CONTENT=true` — intended for fictional dev runs only.
+When no keys are set, the telemetry module is a silent no-op.
+
 ### Next steps
 
 - **IAP** for organization-wide access control (requires a Workspace org).
-- **Langfuse observability** — hook present in `agents/telemetry.py` + `[obs]`
-  extra; wiring deferred to post-competition.
 - **Per-session state store** for multi-user (replace in-memory global).
 
 ## Project structure
