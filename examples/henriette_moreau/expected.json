@@ -1,0 +1,128 @@
+{
+  "status": "needs_review",
+
+  "deceased": {
+    "firstName": "Henriette",
+    "lastName": "Moreau",
+    "age": 91,
+    "personalityTraits": [
+      "généreuse",
+      "discrète",
+      "passionnée de jardinage",
+      "grande lectrice"
+    ],
+    "lifeElements": [
+      "institutrice pendant 35 ans",
+      "bénévole aux Restos du Cœur"
+    ],
+    "avoidMentioning": [
+      "ne pas évoquer le divorce"
+    ]
+  },
+
+  "ceremony": {
+    "date": "2026-09-12",
+    "time": "14:30",
+    "church": "Sainte-Thérèse de Lisieux",
+    "celebrant": "Père Martin",
+    "liturgySteps": [
+      { "label": "Entrée",                    "reference": null,           "title": null,                               "detail": "Musique CD" },
+      { "label": "Accueil",                   "reference": null,           "title": null,                               "detail": "Père Martin" },
+      { "label": "Présentation du défunt",    "reference": null,           "title": null,                               "detail": "Par la famille" },
+      { "label": "Chant d'entrée",            "reference": "N° 12 · Page 8",  "title": "Tu nous as fait la terre",     "detail": null },
+      { "label": "Rite de la lumière",        "reference": null,           "title": "Ô Seigneur je viens vers toi",     "detail": "couplets 1 et 4, porteurs : André, Philippe, Élise" },
+      { "label": "1ère Lecture",              "reference": "L5 Page 22",   "title": "Is 25, 6a.7-9",                    "detail": "Livre d'Isaïe — lecteur : André (fils)" },
+      { "label": "Psaume",                    "reference": "22 Page 18",   "title": "Le Seigneur est mon berger",       "detail": "lectrice : Marguerite (nièce)" },
+      { "label": "Alléluia",                  "reference": null,           "title": null,                               "detail": null },
+      { "label": "Évangile",                  "reference": "E11 Page 60",  "title": "Jn 14, 1-6",                       "detail": "Saint Jean" },
+      { "label": "Homélie",                   "reference": null,           "title": null,                               "detail": "Père Martin" },
+      { "label": "Prière Universelle",        "reference": null,           "title": "Dieu de tendresse, écoute-nous",   "detail": "refrain — intentions A2, B1, C3, D1" },
+      { "label": "Notre Père",                "reference": null,           "title": null,                               "detail": null },
+      { "label": "Chant d'Adieu",             "reference": "N° 25 · Page 14", "title": "Je vous salue Marie",          "detail": null },
+      { "label": "Encensement / Bénédiction", "reference": null,           "title": null,                               "detail": "Célébrant" },
+      { "label": "Prière à Marie",            "reference": null,           "title": null,                               "detail": "Récitée" },
+      { "label": "Bénédiction",               "reference": null,           "title": "Ave Maria",                        "detail": "Assemblée, CD" },
+      { "label": "Sortie",                    "reference": null,           "title": null,                               "detail": "Musique CD" }
+    ],
+    "nextMass": "Dimanche 14 Septembre 2026 à Sainte-Thérèse — 11h00",
+    "entranceSong": "Tu nous as fait la terre",
+    "firstReading": "Is 25, 6a.7-9",
+    "psalm": "Le Seigneur est mon berger",
+    "gospel": "Jn 14, 1-6",
+    "meditationSong": null,
+    "universalPrayerIntentions": [],
+    "finalFarewellSong": "Je vous salue Marie",
+    "practicalNotes": [
+      "CD à l'entrée et à la sortie",
+      "Prière à Marie récitée"
+    ]
+  },
+
+  "participants": {
+    "mainFamilyContact": {
+      "name": null,
+      "relationship": null,
+      "email": null,
+      "phone": null
+    },
+    "readers": [
+      { "name": "André", "relationship": "fils", "task": "première lecture" },
+      { "name": "Marguerite", "relationship": "nièce", "task": "psaume" }
+    ],
+    "prayerReaders": [
+      { "name": "Élise", "relationship": "petite-fille", "task": "intention A2" },
+      { "name": "Philippe", "relationship": "gendre", "task": "intention B1" }
+    ]
+  },
+
+  "communication": {
+    "priestEmail": "pere.martin@example.com",
+    "teamEmails": [
+      "equipe.liturgie@example.com"
+    ],
+    "documentLink": null,
+    "emailSubject": null,
+    "emailBody": null,
+    "emailDraftCreated": false
+  },
+
+  "extraction": {
+    "sourceType": "manual_notes",
+    "pageCount": 2,
+    "missingFields": [
+      "contact principal de la famille (nom, email, téléphone)",
+      "chant de méditation"
+    ],
+    "contradictions": [],
+    "fieldConfidences": {},
+    "needsHumanReview": [
+      "Date corrigée : AOÛT rayé et remplacé par SEPTEMBRE — vérifier que le 12 septembre 2026 est correct",
+      "Nom de famille barré : 'Duval' barré à côté du lecteur André, sans remplacement — confirmer le nom de famille d'André"
+    ]
+  },
+
+  "qualityCheck": {
+    "status": "WARNING",
+    "alerts": [
+      "Contact principal de la famille manquant",
+      "Chant de méditation non renseigné"
+    ],
+    "recommendedActions": [
+      "Confirmer la date (correction manuscrite AOÛT → SEPTEMBRE)",
+      "Confirmer le nom de famille du lecteur André (Duval barré)",
+      "Renseigner le contact de la famille avant envoi du déroulé"
+    ],
+    "suggestedQuestions": [
+      "Quel est le contact principal de la famille (nom, email, téléphone) ?",
+      "Le nom de famille d'André est-il bien Moreau ou un autre nom ? (Duval était barré)",
+      "La cérémonie a bien lieu le vendredi 12 septembre 2026 et non en août ?",
+      "Souhaitez-vous un chant de méditation après la communion ?"
+    ]
+  },
+
+  "security": {
+    "containsSensitiveData": true,
+    "humanValidated": false,
+    "retentionPolicy": "delete_or_anonymize_after_defined_period"
+  }
+}
