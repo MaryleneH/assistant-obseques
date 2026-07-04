@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Dict, Any
 
 from agents.models import Record, CeremonyStatus
+from agents.liturgy import CONTENT_RUBRICS, norm_label
 
 def _get_french_date(iso_date_str: str) -> str:
     """Deterministic French date formatting avoiding system locale dependency."""
@@ -84,8 +85,14 @@ def build_deroule(record: Record) -> Record:
             # Flatten sub array or use as string
             etape["sub"] = sub_parts
         elif not inline_val:
-            # Placeholder for missing values
-            etape["sub"] = "à compléter"
+            # Placeholder only for content rubrics (readings, songs, prayer).
+            # Fixed liturgical moments (Entrée, Accueil, Alléluia, Notre Père,
+            # Homélie, etc.) are legitimately empty — stamping them with
+            # "à compléter" would be incorrect.
+            label_norm = norm_label(step.label or "")
+            content_norms = {norm_label(c) for c in CONTENT_RUBRICS}
+            if label_norm in content_norms:
+                etape["sub"] = "à compléter"
             
         etapes.append(etape)
         

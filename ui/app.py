@@ -14,6 +14,10 @@ import asyncio
 
 from agents.models import Record, CeremonyStatus, LiturgyStep
 from agents.orchestrator import run_until_review, run_after_validation
+from agents.liturgy import (
+    CANONICAL_LABELS, CONTENT_RUBRICS, SCAFFOLD_RUBRICS,
+    norm_label, canonical_position,
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ui.app")
@@ -35,16 +39,11 @@ templates = Jinja2Templates(directory="ui/templates")
 # Global state for MVP
 session_record: Record = None
 session_task = None
-
-def get_canonical_steps():
-    return [
-        {"label": "Chant d'entrée", "reference": "", "title": ""},
-        {"label": "1ère Lecture", "reference": "", "title": ""},
-        {"label": "Psaume", "reference": "", "title": ""},
-        {"label": "Évangile", "reference": "", "title": ""},
-        {"label": "Prière Universelle", "reference": "", "title": ""},
-        {"label": "Chant d'Adieu", "reference": "", "title": ""}
-    ]
+# Session-scoped snapshot of EXTRACTED labels (normalized).  Captured at
+# /extract time BEFORE scaffolding, reset on every new extraction.
+# Used by the rehydration filter: only steps NOT in this set may be dropped
+# when the user leaves them empty (= scaffolded-and-unused).
+session_extracted_labels: set[str] = set()
 
 @app.get("/", response_class=HTMLResponse)
 async def get_index(request: Request):
@@ -64,7 +63,7 @@ from PIL import Image, ImageOps
 
 @app.post("/extract")
 async def post_extract(request: Request, notes: Optional[str] = Form(""), photos: List[UploadFile] = File(None)):
-    global session_record
+    global session_record, session_extracted_labels
     
     contents = []
     if photos:
@@ -94,6 +93,12 @@ async def post_extract(request: Request, notes: Optional[str] = Form(""), photos
     
     # Run orchestration phase 1
     session_record = run_until_review(contents)
+    # Capture the labels the EXTRACTOR produced, before any scaffolding.
+    # This snapshot is the authority for the rehydration drop-rule:
+    # "only scaffolded-and-empty steps may be dropped".
+    session_extracted_labels = {
+        norm_label(s.label) for s in session_record.ceremony.liturgySteps if s.label
+    }
     return RedirectResponse(url="/screen_b", status_code=303)
 
 @app.get("/screen_b", response_class=HTMLResponse)
@@ -107,11 +112,24 @@ async def get_messages():
     if not session_record:
         return []
     
-    existing_labels = [s.label.lower() for s in session_record.ceremony.liturgySteps if s.label]
-    for cstep in get_canonical_steps():
-        if cstep["label"].lower() not in existing_labels:
-            cstep["title"] = "À compléter"
-            session_record.ceremony.liturgySteps.append(LiturgyStep(**cstep))
+    # Scaffold missing SCAFFOLD_RUBRICS only.  Each scaffolded step is
+    # inserted at its canonical liturgical POSITION (not appended), uses
+    # empty title/reference (no placeholder-as-data), and is deduped via
+    # norm_label so "Chant d'Entrée" from a photo never duplicates.
+    existing_norms = {norm_label(s.label) for s in session_record.ceremony.liturgySteps if s.label}
+    for scaffold_label in SCAFFOLD_RUBRICS:
+        if norm_label(scaffold_label) not in existing_norms:
+            new_step = LiturgyStep(label=scaffold_label, reference=None, title=None)
+            # Insert at the canonical position in the list.
+            insert_pos = canonical_position(scaffold_label)
+            # Find the right index: after the last step whose canonical
+            # position is < insert_pos, before the first step whose
+            # canonical position is >= insert_pos.
+            idx = 0
+            for i, s in enumerate(session_record.ceremony.liturgySteps):
+                if canonical_position(s.label or "") < insert_pos:
+                    idx = i + 1
+            session_record.ceremony.liturgySteps.insert(idx, new_step)
             
     if not session_record.deceased.lifeElements:
         session_record.deceased.lifeElements = [""]
@@ -372,7 +390,16 @@ async def post_action(request: Request, background_tasks: BackgroundTasks):
             new_record.security.humanValidated = True
             new_record.status = CeremonyStatus.ready_for_generation
             
-            valid_steps = [s for s in new_record.ceremony.liturgySteps if s.label or s.reference or s.title]
+            # Drop rule: remove steps that were SCAFFOLDED and left empty
+            # by the user.  Extracted steps (even if empty, e.g. an empty
+            # Alléluia) must NEVER be dropped — the sacristan wrote them.
+            valid_steps = []
+            for s in new_record.ceremony.liturgySteps:
+                label_n = norm_label(s.label or "")
+                has_content = bool(s.label or s.reference or s.title)
+                was_extracted = label_n in session_extracted_labels
+                if has_content or was_extracted:
+                    valid_steps.append(s)
             new_record.ceremony.liturgySteps = valid_steps
             
             session_record = new_record
