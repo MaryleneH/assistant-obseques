@@ -1,8 +1,17 @@
 (() => {
   var __defProp = Object.defineProperty;
+  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
   var __export = (target, all) => {
     for (var name in all)
       __defProp(target, name, { get: all[name], enumerable: true });
+  };
+  var __decorateClass = (decorators, target, key, kind) => {
+    var result = kind > 1 ? void 0 : kind ? __getOwnPropDesc(target, key) : target;
+    for (var i10 = decorators.length - 1, decorator; i10 >= 0; i10--)
+      if (decorator = decorators[i10])
+        result = (kind ? decorator(target, key, result) : decorator(result)) || result;
+    if (kind && result) __defProp(target, key, result);
+    return result;
   };
 
   // node_modules/@lit/reactive-element/css-tag.js
@@ -13476,63 +13485,46 @@
 
   // ui/client.ts
   var processor = new MessageProcessor([basicCatalog], (action) => {
-    let mergedDataModel = {};
-    if (processor.model && typeof processor.model.getSurfaces === "function") {
-      const surfaces = processor.model.getSurfaces();
-      for (const s11 of surfaces) {
-        if (s11.dataModel && typeof s11.dataModel.get === "function") {
-          const data = s11.dataModel.get("/");
-          if (data) {
-            mergedDataModel = deepMerge(mergedDataModel, data);
-          }
-        }
-      }
-    } else {
-      console.warn("Could not retrieve surfaces from processor model. Fallback to current surface only.");
-      const surface = processor.model?.getSurface?.(action.surfaceId);
-      mergedDataModel = surface ? surface.dataModel?.get?.("/") || {} : {};
-    }
+    console.log("CLIENT_TS: Preparing to fetch /api/action...");
     fetch("/api/action", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         action,
-        dataModel: mergedDataModel
+        dataModel: processor.getClientDataModel() || {}
       })
-    }).then((res) => res.json()).then((data) => {
+    }).then((res) => {
+      console.log("CLIENT_TS: Fetch completed with status:", res.status);
+      return res.json();
+    }).then((data) => {
       if (data.redirect) {
         window.location.href = data.redirect;
       }
-    }).catch((e11) => console.error("Action error:", e11));
+    }).catch((e11) => console.error("CLIENT_TS: Action fetch error:", e11));
   });
   window.a2ui_processor = processor;
-  function deepMerge(target, source) {
-    if (typeof target !== "object" || target === null) return source;
-    if (typeof source !== "object" || source === null) return source;
-    for (const key of Object.keys(source)) {
-      if (source[key] instanceof Object && key in target) {
-        Object.assign(source[key], deepMerge(target[key], source[key]));
-      }
-    }
-    Object.assign(target || {}, source);
-    return target;
-  }
   var fetched = false;
   function ensureFetched() {
     if (fetched) return;
     fetched = true;
     fetch("/api/messages").then((r9) => r9.json()).then((messages) => processor.processMessages(messages)).catch((e11) => console.error("Messages fetch error:", e11));
   }
-  var MyApp = @t3("my-app") class extends i4 {
-    @n4({ type: String, attribute: "surface-id" })
-    surfaceId = "main";
+  var MyApp = class extends i4 {
+    constructor() {
+      super(...arguments);
+      this.surfaceId = "main";
+    }
     get processor() {
       return processor;
     }
-    @r5()
-    surface;
     connectedCallback() {
       super.connectedCallback();
+      if (processor.model && processor.model.surfaces) {
+        const existing = processor.model.surfaces.get(this.surfaceId);
+        if (existing) {
+          this.surface = existing;
+        }
+      }
       processor.onSurfaceCreated((s11) => {
         if (s11.id === this.surfaceId) {
           this.surface = s11;
@@ -13548,6 +13540,15 @@
       return this.surface ? b2`<a2ui-surface .surface=${this.surface}></a2ui-surface>` : b2`<div style="color: #A0AEC0; font-size: 0.9rem;">Chargement...</div>`;
     }
   };
+  __decorateClass([
+    n4({ type: String, attribute: "surface-id" })
+  ], MyApp.prototype, "surfaceId", 2);
+  __decorateClass([
+    r5()
+  ], MyApp.prototype, "surface", 2);
+  MyApp = __decorateClass([
+    t3("my-app")
+  ], MyApp);
 })();
 /*! Bundled license information:
 

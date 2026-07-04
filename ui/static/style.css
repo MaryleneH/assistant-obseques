@@ -23,10 +23,16 @@
     --a2ui-card-box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 
     --a2ui-button-border-radius: 8px;
-    --a2ui-textfield-border-radius: 8px;
+    --a2ui-textfield-border-radius: 6px;
+    --a2ui-textfield-padding: 8px 12px;
+    --a2ui-label-font-size: 0.85rem;
+    --a2ui-label-font-weight: 600;
     --a2ui-spacing-m: 1rem;
     --a2ui-spacing-s: 0.5rem;
     --a2ui-spacing-xs: 0.25rem;
+    
+    /* Row layout */
+    --a2ui-row-gap: 1rem;
 }
 
 body {
@@ -122,13 +128,24 @@ textarea:focus, input:focus {
 }
 
 .label-micro {
-    display: block;
     font-size: 0.75rem;
+    color: var(--accent-sage);
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #64748B;
-    margin-bottom: 0.25rem;
-    font-weight: 600;
+    font-weight: 700;
+    margin-top: 0;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--border-cream-dark);
+    padding-bottom: 0.5rem;
+}
+
+/* Ensure Row children take up equal space */
+a2ui-basic-textfield {
+    flex: 1;
+    min-width: 150px;
+}
+a2ui-basic-row {
+    width: 100%;
 }
 
 /* Drop zone */

@@ -5,37 +5,22 @@ import {A2uiSurface, basicCatalog} from '@a2ui/lit/v0_9';
 
 // Singleton MessageProcessor to handle all surfaces
 const processor = new MessageProcessor([basicCatalog], (action) => {
-  // Merge data models from ALL active surfaces to prevent regressions (MULTI-SURFACE = ONE DATA MODEL)
-  let mergedDataModel = {};
-  if (processor.model && typeof processor.model.getSurfaces === 'function') {
-      const surfaces = processor.model.getSurfaces();
-      for (const s of surfaces) {
-          if (s.dataModel && typeof s.dataModel.get === 'function') {
-              const data = s.dataModel.get('/');
-              if (data) {
-                  // Merge deeply or simply Object.assign since they share the same tree
-                  mergedDataModel = deepMerge(mergedDataModel, data);
-              }
-          }
-      }
-  } else {
-      console.warn("Could not retrieve surfaces from processor model. Fallback to current surface only.");
-      const surface = processor.model?.getSurface?.(action.surfaceId);
-      mergedDataModel = surface ? (surface.dataModel?.get?.('/') || {}) : {};
-  }
-
+  console.log("CLIENT_TS: Preparing to fetch /api/action...");
   fetch('/api/action', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({
       action: action,
-      dataModel: mergedDataModel
+      dataModel: processor.getClientDataModel() || {}
     })
-  }).then(res => res.json()).then(data => {
+  }).then(res => {
+    console.log("CLIENT_TS: Fetch completed with status:", res.status);
+    return res.json();
+  }).then(data => {
     if (data.redirect) {
       window.location.href = data.redirect;
     }
-  }).catch(e => console.error("Action error:", e));
+  }).catch(e => console.error("CLIENT_TS: Action fetch error:", e));
 });
 
 // Expose processor for UI tests
@@ -79,6 +64,14 @@ export class MyApp extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
+
+    // Pull already-created surface (late-mount)
+    if (processor.model && processor.model.surfaces) {
+      const existing = processor.model.surfaces.get(this.surfaceId);
+      if (existing) {
+        this.surface = existing;
+      }
+    }
 
     processor.onSurfaceCreated(s => {
       if (s.id === this.surfaceId) {
