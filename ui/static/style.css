@@ -139,11 +139,8 @@ textarea:focus, input:focus {
     padding-bottom: 0.5rem;
 }
 
-/* Ensure Row children take up equal space */
-a2ui-basic-textfield {
-    flex: 1;
-    min-width: 150px;
-}
+/* Ensure Row children take up equal space — see structural
+   a2ui-basic-textfield rules below for overflow guards. */
 a2ui-basic-row {
     width: 100%;
 }
@@ -248,9 +245,45 @@ a2ui-surface {
     --a2ui-spacing-m: 1.5rem;
 }
 
+/* ── A2UI host-level constraints (light DOM) ─────────────────
+   Shadow DOM does not inherit page CSS.  These rules constrain
+   the OUTER host element so it cannot exceed its container,
+   which is the classic fix for flex children that overflow.
+   min-width:0 is the flex-overflow killer.
+   STRUCTURAL: applies at EVERY viewport — landscape phones
+   (~840px) bypass ≤640px queries but must never overflow. */
+a2ui-basic-row,
+a2ui-basic-textfield,
+a2ui-basic-button,
+a2ui-basic-text,
+my-app {
+    display: block;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+a2ui-basic-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--a2ui-row-gap, 1rem);
+    width: 100%;
+}
+/* Structural: text fields must never exceed their row */
+a2ui-basic-textfield {
+    flex: 1;
+    min-width: 0;
+    max-width: 100%;
+}
+/* Structural: no horizontal scrollbar at ANY viewport */
+html, body {
+    overflow-x: hidden;
+}
+
 /* ================================================================
-   MOBILE-FIRST RESPONSIVE (≤640px)
-   Stack A2UI rows, full-width inputs, thumb-friendly controls.
+   MOBILE-ONLY RESPONSIVE (≤640px)
+   Vertical stacking, tighter spacing, thumb-friendly controls.
+   Overflow guards are ABOVE (structural) — these are presentation.
    ================================================================ */
 @media (max-width: 640px) {
     .container, .a2ui-container {
@@ -271,7 +304,7 @@ a2ui-surface {
         font-size: 0.7rem;
     }
 
-    /* A2UI Rows: force vertical stacking — no horizontal overflow */
+    /* A2UI Rows: force vertical stacking on narrow screens */
     a2ui-basic-row {
         flex-direction: column !important;
         display: flex !important;
@@ -295,16 +328,12 @@ a2ui-surface {
         width: 100% !important;
         min-height: 48px;
     }
-    /* Ensure no horizontal scrollbar */
-    html, body {
-        overflow-x: hidden;
-    }
 }
 
 /* ================================================================
-   CANDLE LOADER — shared waiting-state component
+   CANDLE LOADER — waiting-state component (Screen A only).
    Sober, liturgical, on-palette.  CSS-only flame animation.
-   Used on Screen A (extraction) and Screen C (generation).
+   Strengthened flicker amplitude for mobile visibility.
    ================================================================ */
 .candle-overlay {
     display: none;
@@ -315,7 +344,7 @@ a2ui-surface {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 24px;
+    gap: 20px;
 }
 .candle-overlay.active {
     display: flex;
@@ -325,7 +354,7 @@ a2ui-surface {
 .candle {
     position: relative;
     width: 28px;
-    height: 80px;
+    height: 90px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -347,51 +376,70 @@ a2ui-surface {
     bottom: 60px;
     border-radius: 1px;
 }
-/* Flame: two layers for depth */
+/* Flame: STRENGTHENED for mobile visibility — larger, more obvious motion */
 .candle-flame {
     position: absolute;
-    bottom: 70px;
-    width: 12px;
-    height: 22px;
+    bottom: 68px;
+    width: 14px;
+    height: 28px;
     border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
-    background: radial-gradient(ellipse at 50% 60%, #FFE082 0%, #FFB300 50%, #FF8F00 100%);
-    animation: flicker 2.5s ease-in-out infinite alternate;
-    filter: blur(0.3px);
+    background: radial-gradient(ellipse at 50% 60%, #FFE082 0%, #FFB300 45%, #FF8F00 100%);
+    animation: flicker 1.8s ease-in-out infinite alternate;
+    will-change: transform, opacity;
 }
 .candle-flame::after {
     content: '';
     position: absolute;
-    top: 2px; left: 2px; right: 2px; bottom: 3px;
+    top: 3px; left: 2px; right: 2px; bottom: 4px;
     border-radius: inherit;
     background: radial-gradient(ellipse at 50% 55%, #FFF9C4 0%, #FFE082 60%, transparent 100%);
-    animation: flicker-inner 1.8s ease-in-out infinite alternate-reverse;
+    animation: flicker-inner 1.4s ease-in-out infinite alternate-reverse;
+    will-change: transform, opacity;
 }
-/* Subtle warm glow around the flame */
+/* Warm glow around the flame */
 .candle-glow {
     position: absolute;
-    bottom: 62px;
-    width: 50px;
-    height: 50px;
+    bottom: 60px;
+    width: 60px;
+    height: 60px;
     border-radius: 50%;
-    background: radial-gradient(circle, rgba(255,224,130,0.25) 0%, transparent 70%);
-    animation: glow-pulse 3s ease-in-out infinite alternate;
+    background: radial-gradient(circle, rgba(255,224,130,0.3) 0%, transparent 70%);
+    animation: glow-pulse 2.5s ease-in-out infinite alternate;
+    will-change: opacity, transform;
 }
 
+/* STRENGTHENED keyframes: bigger scale swings + rotation for obvious motion */
 @keyframes flicker {
-    0%   { transform: scale(1) rotate(-1deg); opacity: 1; }
-    25%  { transform: scale(1.04) rotate(0.5deg); opacity: 0.95; }
-    50%  { transform: scale(0.97) rotate(-0.5deg); opacity: 1; }
-    75%  { transform: scale(1.02) rotate(1deg); opacity: 0.97; }
-    100% { transform: scale(1) rotate(-0.5deg); opacity: 1; }
+    0%   { transform: scale(1) rotate(-2deg); opacity: 1; }
+    20%  { transform: scale(1.12) rotate(1.5deg); opacity: 0.92; }
+    40%  { transform: scale(0.9) rotate(-1deg); opacity: 1; }
+    60%  { transform: scale(1.08) rotate(2deg); opacity: 0.94; }
+    80%  { transform: scale(0.95) rotate(-1.5deg); opacity: 1; }
+    100% { transform: scale(1.05) rotate(0.5deg); opacity: 0.96; }
 }
 @keyframes flicker-inner {
-    0%   { transform: scaleY(1); opacity: 0.9; }
-    50%  { transform: scaleY(1.06); opacity: 1; }
-    100% { transform: scaleY(0.95); opacity: 0.85; }
+    0%   { transform: scaleY(1); opacity: 0.85; }
+    50%  { transform: scaleY(1.15); opacity: 1; }
+    100% { transform: scaleY(0.88); opacity: 0.8; }
 }
 @keyframes glow-pulse {
-    0%   { opacity: 0.5; transform: scale(1); }
-    100% { opacity: 0.8; transform: scale(1.1); }
+    0%   { opacity: 0.4; transform: scale(1); }
+    100% { opacity: 0.9; transform: scale(1.15); }
+}
+
+/* Slim spinner ring under the candle — continuous, unambiguous motion.
+   Sage-colored arc rotating at constant speed. */
+.candle-spinner {
+    width: 30px;
+    height: 30px;
+    border: 3px solid rgba(116, 156, 117, 0.2);
+    border-top-color: var(--accent-sage);
+    border-radius: 50%;
+    animation: candle-spin 1s linear infinite;
+    will-change: transform;
+}
+@keyframes candle-spin {
+    to { transform: rotate(360deg); }
 }
 
 /* Loader text */
