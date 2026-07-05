@@ -193,6 +193,10 @@ def run_after_validation(record: Record) -> Record:
                 metadata=safe_metadata({
                     "duration_s": round(dt, 2),
                     "appended": bool(append_result),
+                    "integration_path": (
+                        append_result.get("integration_path", "unknown")
+                        if append_result else "skipped"
+                    ),
                 }),
             )
 
