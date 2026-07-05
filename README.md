@@ -40,10 +40,10 @@ extracted record, the assistant produces:
 
 - a **polished one-page Word (.docx) déroulé** (order of service) — the tool
   the sacristan works in every day; the primary human-facing deliverable;
-- a **Google Doc** — shareable web copy of the same order of service (MCP);
-- a **Gmail draft** to the priest and funeral team — **never auto-sent** (MCP);
+- a **Google Doc** — shareable web copy of the same order of service (Google Docs API);
+- a **Gmail draft** to the priest and funeral team — **never auto-sent** (Gmail API — draft only);
 - **one row in the sacristan's own Google Sheet** — her durable registry, in
-  her own Drive (MCP);
+  her own Drive (MCP server — direct-API fallback);
 - **suggested follow-up questions** for the next family conversation, derived
   from what is missing or uncertain.
 
@@ -70,25 +70,27 @@ flowchart TD
     CHK --> GATE{{Human validation gate — A2UI<br/>the sacristan reviews, corrects, validates}}
     GATE -->|validated| WRI[Writer agent<br/>order of service + universal prayer]
     WRI --> DOCX[Runtime skill<br/>one-page Word déroulé]
-    WRI --> DOC[Google Doc — MCP]
-    WRI --> MAIL[Gmail draft — never sent — MCP]
-    REC --> SHEET[Row in her Google Sheet — MCP]
+    WRI --> DOC[Google Doc — Docs API]
+    WRI --> MAIL[Gmail draft — never sent — Gmail API]
+    REC --> SHEET["Row — MCP server (@mcp-z/mcp-sheets) · direct-API fallback"]
     DOCX --> FIN[Final human review & send]
     DOC --> FIN
     MAIL --> FIN
 ```
 
-Four ADK agents (Orchestrator, Extractor, Checker/Safety, Writer); `Document`,
-`Email` and `Sheet` are **MCP tool calls**, not agents. The one-page Word
-déroulé is rendered by a **runtime skill** (rules + proven script), from the
-ordered `ceremony.liturgySteps` validated against a real order of service.
+Four ADK agents (Orchestrator, Extractor, Checker/Safety, Writer). Document
+and Email are **direct Google API calls** (Docs API, Gmail API — drafts only);
+the Sheet write is **MCP-first** (`@mcp-z/mcp-sheets` via stdio) **with
+automatic API fallback**. The one-page Word déroulé is rendered by a **runtime
+skill** (rules + proven script), from the ordered `ceremony.liturgySteps`
+validated against a real order of service.
 
 ## Course concepts demonstrated
 
 | Concept | Where | How |
 | --- | --- | --- |
 | **ADK multi-agents** | `agents/` | Orchestrator + Extractor + Checker + Writer pipeline |
-| **MCP** | `integrations/mcp/` | Google Docs, Gmail, Google Sheets servers |
+| **MCP** | `tools/mcp_clients.py`, `integrations/mcp/` | Real MCP runtime path: registry writes go through the `@mcp-z/mcp-sheets` MCP server (stdio, service-account auth); tools discovered at runtime via `list_tools()` (26 tools), `rows-append` selected, arguments mapped from the discovered `inputSchema` (`id` / `gid` / `rows` / `headers`). Automatic direct-API fallback on any error; every call records `integration_path` (`mcp` \| `api_fallback` \| `api`). Proven by `eval/test_mcp_sheets.py`. |
 | **Antigravity 2.0** | whole build | Spec-driven build (`AGENTS.md` + `specs/`), build-time skills, artifacts shown in the video |
 | **Security** | `security/`, hooks | Human gate, allow/deny lists, terminal sandboxing, gitleaks pre-commit, fictional-data-only rule |
 | **Deployability** | Cloud Run | Dockerfile + `gcloud run deploy` — application-gated (Google Sign-In), scale-to-zero, EU region |
@@ -98,7 +100,7 @@ ordered `ceremony.liturgySteps` validated against a real order of service.
 
 - **Python 3.13** (pinned), **Google ADK** (multi-agent pipeline)
 - **Gemini** multimodal (photo/notes extraction) + reasoning (checking, writing)
-- **MCP servers**: Google Docs, Gmail, Google Sheets
+- **MCP**: `@mcp-z/mcp-sheets` (stdio) for the registry, feature-flagged (`USE_MCP` / `USE_MCP_SHEETS` / `USE_MCP_GMAIL`, `SHEET_GID`) with automatic direct-API fallback · **Google APIs** (`googleapiclient`): Gmail drafts, Docs
 - **A2UI** validation screen, in a mobile-first web app (`ui/`)
 - **Runtime skill**: Node.js one-page Word renderer (`skills/deroule-obseques/`)
 - **Deployment**: Cloud Run, `europe-west9` (Paris) — application-gated, scale-to-zero
@@ -114,6 +116,35 @@ ordered `ceremony.liturgySteps` validated against a real order of service.
 - **A `BLOCKING` status disables generation** until the human resolves it.
 - Build-side: terminal sandboxing + allow/deny lists in Antigravity, gitleaks
   pre-commit hook, fictional data only in the repo (hard rule 7).
+
+## MCP-first, with graceful fallback
+
+The Sheet integration follows a **MCP-first** design: `append_ceremony_row`
+opens a stdio session to `@mcp-z/mcp-sheets`, discovers its tools at runtime
+via `list_tools()` (never guesses tool names), selects `rows-append`, and maps
+arguments from the tool's own `inputSchema`. On *any* error the same function
+falls back to the direct `googleapiclient` SDK — every call records its
+`integration_path` (`mcp` | `api_fallback` | `api`) for observability.
+
+Three upstream quirks were found by reading the server's source and neutralized
+with labeled minimal workarounds:
+
+1. **Unconditional `GOOGLE_CLIENT_ID` validation** — `@mcp-z/oauth-google`
+   v1.0.6 calls `requiredEnv('GOOGLE_CLIENT_ID')` before the
+   `auth === 'service-account'` branch; a labeled dummy satisfies the check.
+2. **`file://C:/` URIs on Windows** — Node's URL parser treats the drive
+   letter as the URL host; `keyv-registry`'s `resolveFilePath` then doubles it
+   (`C:\C:\…`). Override with `file://~` store URIs.
+3. **Child environment** — built from the MCP SDK's `get_default_environment()`
+   instead of `os.environ`, so no API key or session secret is ever handed to
+   third-party server code.
+
+On Cloud Run the service runs with `USE_MCP_SHEETS=false` by design: even
+though the container ships Node.js (for the Word-déroulé skill), spawning a
+community MCP server via `npx` at request time would add a supply-chain pull
+and cold-start latency to a bereavement-critical path. Production therefore
+uses the hardened direct-API path; the MCP path is exercised and proven locally
+and by the test suite (`integration_path=mcp`).
 
 ## Getting started
 
@@ -141,8 +172,11 @@ python ui/app.py          # http://localhost:8002 — AUTH_MODE=off by default l
 
 ### Test
 ```bash
+python eval/test_mcp_manual.py     # 30-second MCP proof (no Gemini pipeline)
+python eval/test_mcp_sheets.py     # MCP happy path + fallback + flag-off
 python eval/test_auth.py           # 7 auth-gate assertions
 python eval/test_edit_survival.py  # full pipeline proof (LLM + Google APIs)
+python eval/run_all.py             # all 8 suites
 ```
 
 ## Demo & test case
@@ -225,6 +259,7 @@ gcloud run deploy assistant-obseques \
   --set-env-vars "^;^EXTRACTOR_MODEL=gemini-2.5-flash;\
 WRITER_MODEL=gemini-2.5-flash;\
 SHEET_ID=your-sheet-id;\
+USE_MCP_SHEETS=false;\
 ALLOWED_EMAILS=sacristine@example.com,pere.bernard@example.com;\
 SACRISTAN_EMAIL=sacristine@example.com;\
 AUTH_MODE=on;\
@@ -235,6 +270,8 @@ AUTH_ALLOWED_EMAILS=sacristine@example.com"
 
 **Notes:**
 - `^;^` — custom separator because `ALLOWED_EMAILS` contains commas.
+- `USE_MCP_SHEETS=false` — the currently deployed revision predates the MCP
+  code; no redeploy needed for judging. This flag matters on the next deploy.
 - `--max-instances 1` — the demo uses in-memory single-session state by design.
 - `--allow-unauthenticated` — the gate lives in the **application**, not in IAM
   (Google Sign-In + email allowlist; see Security notes below).

@@ -24,9 +24,10 @@ familles**.
   mérite vérification ;
 - vous **suggérer les questions à poser à la famille** au prochain rendez-vous ;
 - après **votre** validation : générer le **déroulé Word élégant, une page**
-  (votre outil de tous les jours), un Google Doc partageable, un **brouillon**
-  d'email au prêtre et à l'équipe, et une ligne dans **votre** registre
-  Google Sheet.
+  (votre outil de tous les jours), un Google Doc partageable (API Google Docs),
+  un **brouillon** d'email au prêtre et à l'équipe (API Gmail — brouillon
+  uniquement), et une ligne dans **votre** registre Google Sheet (serveur MCP
+  — repli automatique sur l'API directe).
 
 **Il ne fait jamais :**
 - envoyer un email tout seul — c'est toujours vous qui appuyez sur « Envoyer » ;
@@ -86,11 +87,43 @@ python ui/app.py          # http://localhost:8002 — AUTH_MODE=off par défaut 
 ## Comment c'est construit
 
 Quatre agents spécialisés (extraction, vérification, rédaction, orchestration)
-construits avec **Google ADK**, reliés à Google Docs, Gmail et Sheets via
-**MCP** ; un écran de validation **A2UI** au centre — la porte humaine ; un
-**skill** dédié met en forme le déroulé Word une page. Le tout est hébergé
-sur **Cloud Run** (privé, région Paris, coût quasi nul au repos). Détails
-techniques : [README anglais](README.md) et [`specs/interface.md`](specs/interface.md).
+construits avec **Google ADK**. Document et Email passent par les **API Google
+directes** (Docs, Gmail — brouillons uniquement) ; l'écriture dans le registre
+Sheet est **MCP-first** (`@mcp-z/mcp-sheets` via stdio) **avec repli
+automatique sur l'API directe**. Un écran de validation **A2UI** au centre —
+la porte humaine ; un **skill** dédié met en forme le déroulé Word une page.
+Le tout est hébergé sur **Cloud Run** (privé, région Paris, coût quasi nul au
+repos). Détails techniques : [README anglais](README.md) et
+[`specs/interface.md`](specs/interface.md).
+
+### MCP-first, avec repli gracieux
+
+L'intégration Sheet suit un design **MCP-first** : `append_ceremony_row` ouvre
+une session stdio vers `@mcp-z/mcp-sheets`, découvre les outils à l'exécution
+via `list_tools()` (jamais devinés), sélectionne `rows-append`, et mappe les
+arguments depuis le `inputSchema` de l'outil. En cas d'erreur, repli
+automatique sur l'API directe `googleapiclient` — chaque appel enregistre son
+`integration_path` (`mcp` | `api_fallback` | `api`).
+
+Trois particularités amont ont été identifiées en lisant le source du serveur
+et neutralisées par des contournements minimaux documentés :
+
+1. **Validation inconditionnelle de `GOOGLE_CLIENT_ID`** — `@mcp-z/oauth-google`
+   v1.0.6 appelle `requiredEnv('GOOGLE_CLIENT_ID')` avant la branche
+   `auth === 'service-account'` ; un dummy étiqueté satisfait la vérification.
+2. **URIs `file://C:/` sous Windows** — le parser URL de Node prend la lettre
+   du lecteur pour le host de l'URL ; `keyv-registry` double alors le chemin
+   (`C:\C:\…`). Contournement : URIs de stockage en `file://~`.
+3. **Environnement du processus fils** — construit depuis
+   `get_default_environment()` du SDK MCP au lieu de `os.environ`, pour ne
+   jamais transmettre de clé API ou de secret de session au code tiers.
+
+Sur Cloud Run, le service tourne volontairement avec `USE_MCP_SHEETS=false` :
+même si le conteneur embarque Node.js (pour le skill du déroulé Word), lancer
+un serveur MCP communautaire via `npx` au moment de la requête ajouterait une
+dépendance supply-chain et une latence de démarrage sur un chemin critique. La
+production utilise donc l'API directe, durcie ; le chemin MCP est exercé et
+prouvé en local et par la suite de tests (`integration_path=mcp`).
 
 ## Déploiement (Cloud Run) — optionnel
 
