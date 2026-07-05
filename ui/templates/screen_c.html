@@ -5,8 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Assistant Obsèques - Résultat</title>
     <link rel="stylesheet" href="/static/style.css">
-    <!-- Meta refresh based on status -->
-    {% if status not in ['document_created', 'email_draft_created'] %}
+    <!-- Poll until generation_complete — not status-based (avoids the race
+         where gdocLink was unset at the intermediate status change). -->
+    {% if not generation_complete %}
     <meta http-equiv="refresh" content="5">
     {% endif %}
     <style>
@@ -25,19 +26,48 @@
             margin-top: 24px;
             font-size: 14px;
         }
+        .waiting-text {
+            color: var(--accent-sage);
+            font-weight: 500;
+            margin: 24px 0 8px;
+        }
+        .waiting-sub {
+            color: #64748B;
+            font-size: 0.85rem;
+        }
+        .error-box {
+            background: #FEF2F2;
+            border: 1px solid var(--error-red);
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 16px;
+            color: var(--error-red);
+            font-size: 0.9rem;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="brand-header">
             <h1 class="brand-title">Assistant Obsèques</h1>
-            <p class="brand-subtitle">Paroisse & Espérance</p>
+            <p class="brand-subtitle">Paroisse &amp; Espérance</p>
         </div>
 
         <div class="card">
-            {% if status not in ['document_created', 'email_draft_created'] %}
+            {% if generation_error %}
+                <h3 class="label-micro">Erreur lors de la génération</h3>
+                <div class="error-box">
+                    <p>Une erreur est survenue pendant la création des documents.</p>
+                    <p>Veuillez réessayer ou contacter l'assistance.</p>
+                </div>
+                <a href="/" class="btn-primary" style="margin-top: 16px;">← Recommencer</a>
+
+            {% elif not generation_complete %}
                 <h3 class="label-micro">Génération en cours…</h3>
-                <p>Vos documents sont en préparation.</p>
+                <p class="waiting-text">Vos documents sont en préparation.</p>
+                <p class="waiting-sub">Google Doc, brouillon Gmail, ligne de registre…<br>
+                Cela prend généralement moins d'une minute.</p>
+
             {% else %}
                 <div class="success-icon">✓</div>
                 <h3 class="label-micro">Dossier généré avec succès</h3>
@@ -70,45 +100,5 @@
             {% endif %}
         </div>
     </div>
-
-    <!-- Candle loader overlay (shared component from style.css) -->
-    <div id="candleOverlay" class="candle-overlay">
-        <div class="candle">
-            <div class="candle-glow"></div>
-            <div class="candle-flame"></div>
-            <div class="candle-wick"></div>
-            <div class="candle-wax"></div>
-        </div>
-        <div id="candleMsg" class="candle-message">Création du déroulé…</div>
-        <div class="candle-submessage">Cela prend généralement moins d'une minute.</div>
-    </div>
-
-    <script>
-        // Show candle overlay when generation is in progress
-        (function() {
-            const isGenerating = {{ 'true' if status not in ['document_created', 'email_draft_created'] else 'false' }};
-            if (!isGenerating) return;
-
-            const overlay = document.getElementById('candleOverlay');
-            overlay.classList.add('active');
-
-            const messages = [
-                'Création du déroulé\u2026',
-                'Rédaction du mot d\u2019accueil\u2026',
-                'Préparation du brouillon\u2026',
-            ];
-            let idx = 0;
-            const el = document.getElementById('candleMsg');
-            setInterval(() => {
-                idx = (idx + 1) % messages.length;
-                el.style.opacity = '0';
-                setTimeout(() => {
-                    el.textContent = messages[idx];
-                    el.style.opacity = '1';
-                }, 400);
-            }, 6000);
-        })();
-    </script>
 </body>
 </html>
-
