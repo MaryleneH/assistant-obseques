@@ -179,6 +179,11 @@ templates = Jinja2Templates(directory="ui/templates")
 # Global state for MVP
 session_record: Record = None
 session_task = None
+# Completion flag: True when ALL deliverables (docx, gdoc, draft, sheet)
+# are done.  Screen C polls until this is True, avoiding the race where
+# an intermediate status caused polling to stop before gdocLink was set.
+session_generation_complete: bool = False
+session_generation_error: str | None = None
 # Session-scoped snapshot of EXTRACTED labels (normalized).  Captured at
 # /extract time BEFORE scaffolding, reset on every new extraction.
 # Used by the rehydration filter: only steps NOT in this set may be dropped
@@ -464,7 +469,9 @@ async def get_messages():
     return messages
 
 def background_generation(record: Record):
-    global session_record
+    """Run Phase 2 in the background.  Sets generation_complete at the
+    very end so Screen C keeps polling until ALL deliverables are ready."""
+    global session_record, session_generation_complete, session_generation_error
     try:
         logger.info(f"background_generation: starting, record.status={record.status}")
         result = run_after_validation(record)
@@ -472,6 +479,10 @@ def background_generation(record: Record):
         session_record = result
     except Exception as e:
         logger.error(f"Generation failed: {e}", exc_info=True)
+        session_generation_error = str(e)
+    finally:
+        # Signal completion AFTER all deliverables — no premature stop.
+        session_generation_complete = True
 
 def extract_diffs(original, updated):
     diff = {}
@@ -499,7 +510,7 @@ def apply_diffs(target, diff):
 
 @app.post("/api/action")
 async def post_action(request: Request, background_tasks: BackgroundTasks):
-    global session_record
+    global session_record, session_generation_complete, session_generation_error
     payload = await request.json()
     action = payload.get("action", {})
     
@@ -544,6 +555,9 @@ async def post_action(request: Request, background_tasks: BackgroundTasks):
             new_record.ceremony.liturgySteps = valid_steps
             
             session_record = new_record
+            # Reset completion flags before launching generation
+            session_generation_complete = False
+            session_generation_error = None
             background_tasks.add_task(background_generation, session_record)
             
             return {"redirect": "/screen_c"}
@@ -571,6 +585,11 @@ async def get_screen_c(request: Request):
         "draft_fallback": draft_fallback,
         "draft_attachment": draft_attachment,
         "gdoc_link": session_record.communication.gdocLink,
+        # Completion flag: Screen C keeps polling until this is True.
+        # Fixes the race where an intermediate status stopped the refresh
+        # before gdocLink was set.
+        "generation_complete": session_generation_complete,
+        "generation_error": session_generation_error,
     }
     return HTMLResponse(templates.get_template("screen_c.html").render(context))
 

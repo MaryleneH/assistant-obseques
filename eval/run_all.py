@@ -22,6 +22,7 @@ SUITES = [
     ("Edit survival",      "eval/test_edit_survival.py"),
     ("Adversarial (injection)", "eval/test_injection.py"),
     ("Photo page ordering","eval/test_photo_order.py"),
+    ("Mobile rendering",   "eval/test_mobile_rendering.py"),
 ]
 
 # These are optional / heavy — only run if explicitly asked
