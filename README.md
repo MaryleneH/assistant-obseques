@@ -256,8 +256,8 @@ gcloud run deploy assistant-obseques \
     GMAIL_TOKEN_JSON=gmail-oauth-token:latest,\
     GOOGLE_API_KEY=google-api-key:latest,\
     SESSION_SECRET=session-secret:latest \
-  --set-env-vars "^;^EXTRACTOR_MODEL=gemini-2.5-flash;\
-WRITER_MODEL=gemini-2.5-flash;\
+  --set-env-vars "^;^EXTRACTOR_MODEL=gemini-3.5-flash;\
+WRITER_MODEL=gemini-3.5-flash;\
 SHEET_ID=your-sheet-id;\
 USE_MCP_SHEETS=false;\
 ALLOWED_EMAILS=sacristine@example.com,pere.bernard@example.com;\
